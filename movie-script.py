@@ -5,6 +5,7 @@
 # 2016 Jonathan Demaeyer.
 # See LICENSE.txt for license information.  
 
+# Usage : ./movie-script.py <data-filename> <ageom> <ogeom>
 
 # This code needs: 
 # - mencoder
@@ -39,8 +40,8 @@ import sys
 
 # Defining mail address from where and to which send mails
 
-fromaddr = "jodemaey@gloin.oma.be"
-toaddr = "jodemaey@meteo.be"
+fromaddr = ""
+toaddr = ""
 
 # Utility functions
 
