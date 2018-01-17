@@ -67,6 +67,15 @@ import subprocess
 #                     - p3 : oceanic lower layer streamfunction
 #                     - p1 : oceanic upper layer streamfunction
 #                     - dt : ocean-atmosphere temperature difference
+#                     - ua : atmospheric U wind component at 500 mb
+#                     - va : atmospheric V wind component at 500 mb
+#                     - uo : oceanic U current component
+#                     - vo : oceanic V current component
+#                     - ua1: atmospheric upper U wind component
+#                     - va1: atmospheric upper V wind component
+#                     - ua3: atmospheric lower U wind component
+#                     - va3: atmospheric lower V wind component
+
 
 Zsel=['ap','at','op','ot']
 
@@ -100,7 +109,10 @@ geo=f0/9.81
 # Defining and ordering labels
 #-----------------------------
 
-Zlabel={'at':"Atm. Temperature ($^\circ\!$C)",'ot':'Ocean Temperature ($^\circ\!$C)','dt':'Oc.-Atms Temperature diff.','ap':r'Geopotential height $\psi_a f_0/g$ (m)','op':r'Ocean $\psi_o$ (m$^2$s$^{-1}$)'}
+Zlabel={'at':"Atm. Temperature ($^\circ\!$C)",'ot':'Ocean Temperature ($^\circ\!$C)','dt':'Oc.-Atm. Temperature diff.','ap':r'Geopotential height $\psi_a f_0/g$ (m)','op':r'Ocean $\psi_o$ (m$^2$s$^{-1}$)','p3':r'Atm. low. layer $\psi_a^3$','p1':r'Atm. up. layer $\psi_a^1$','uo':'Ocean U current','vo':'Ocean V current','ua':'Atm. U wind','va':'Atm. V wind','ua3':'Atm. low. U wind','va3':'Atm. low. V wind','ua1':'Atm. up. U wind','va1':'Atm. up. V wind'}
+
+Zlabelmini={'at':"Atm. T$^\circ$)",'ot':'Oc. T$^\circ$)','dt':'Oc.-Atm. T$^\circ$ diff.','ap':r'Geopot. height','op':r'Oc. $\psi_o$','p3':r'Atm. $\psi_a^3$','p1':r'Atm. $\psi_a^1$','ua':'Atm. U wind','va':'Atm. V wind','uo':'Ocean U current','vo':'Ocean V current','ua3':'Atm. low. U wind','va3':'Atm. low. V wind','ua1':'Atm. up. U wind','va1':'Atm. up. V wind'}
+
 
 Zlab=[]
 for x in Zsel:
@@ -150,7 +162,8 @@ def fmt(x, pos):
     else:
         return unicode(r'{}$\times 10^{{{}}}$'.format(a, b))
 
-# Load the geometries given as arguments or by the users
+# Loading the geometries given as arguments or by the users
+#-----------------------------------------------------------
 
 if len(sys.argv)==4:
     ageom=sys.argv[2][:]
@@ -210,6 +223,7 @@ for w in oms:
 
 
 # Defining the basis functions and their partial derivatives
+#------------------------------------------------------------
 
 # For the atmosphere
 def Fi(i,x,y):
@@ -266,7 +280,8 @@ def dyphi(i,x,y):
     Ny=w['Ny']
     return 2*Ny*np.sin(nr*Nx*x)*np.cos(Ny*y)/L #2*np.exp(-al*x)*np.sin(nr*Nx*x)*np.sin(Ny*y)
 
-# Function returning the (vector) fields based on the coefficients
+# Function returning the fields based on the coefficients
+# ---------------------------------------------------------
 
 # For the atmospheric streamfunction
 def astream(x,y,pt):
@@ -299,7 +314,7 @@ def ostream_cons(x,y,a):
         Z+=a[i]*phi(i+1,x,y)-a[i]*Ci(i+1)
     return Z
 
-# Oceanic non-conserved fields (used to compute the temperature field)
+# Oceanic non-conserved fields (used to compute the temperature fields)
 def ostream(x,y,a):
     Z=a[0]*phi(1,x,y)
     for i in range(1,omod):
@@ -333,11 +348,19 @@ else:
     print "No data filename specified as argument."
     s=raw_input('Filename of the data ?')
 
+
+#-----------------------------------------
+# Loading the data
+#-----------------------------------------
+
+# Opening files and determing data range
+#-----------------------------------------
+
 # Possible legend for the data (not used in general)
 #leg=raw_input('Legende?')
 leg=''
 sl=[s] # Nom du fichier de donnee
-fl=[leg]#,'averaged','determinist'] # Legende
+fl=[leg] # Legende
 nlf=linecount(s) # Counting the number of line of data
 
 # Opening the file
@@ -370,9 +393,9 @@ print 'There is '+str(nlf)+' lines of data in the file'
 print 'representing '+str(nlf*(ndim+1)*8/1.e6)+' Mbytes ('+str(nlf*(ndim+1)*8/1.e9)+' GB)'
 print 'and '+str((x2-x1)*nlf)+' years of data.'
 while True:
-    sti='' #raw_input('Where do you want to start reading ? (default=first)')
-    ste='2000000' #raw_input('And where do you want to stop ? (default=last)')
-    itr='' #raw_input('What interval should we use to read lines ? (default=1)')
+    sti=raw_input('Where do you want to start reading ? (default=first)')
+    ste=raw_input('And where do you want to stop ? (default=last)')
+    itr=raw_input('What interval should we use to read lines ? (default=1)')
     if not sti:
         sti=0
     else:
@@ -385,17 +408,17 @@ while True:
         itr=1
     else:
         itr=int(itr)
-    print 'It will represent '+str((ste-sti)*(ndim+1)*8*8/1.e6/itr)+' Mbytes of data in the memory. ('+str((ste-sti)*(ndim+1)*8*8/1.e9/itr)+' GB)'
+    print 'It will represent '+str((ste-sti)*(ndim+1)*8/1.e6/itr)+' Mbytes of data in the memory. ('+str((ste-sti)*(ndim+1)*8/1.e9/itr)+' GB)'
     print 'and '+str((x2-x1)*(ste-sti))+' years of data.'
-    x='y'  #raw_input('Do you agree with this ? (y/n)')
-    if x=='y':
+    x=raw_input('Do you agree with this ? (y/N)')
+    if x in ['y','Y']:
         break
     else:
         print 'No? Ok...'
 
-
-
 # Defining the variables that will be shown in the "attractor" view
+#-------------------------------------------------------------------
+
 ls=[]
 ms=[]
 showp=[]
@@ -439,6 +462,8 @@ for i in range(len(sl)):
 
     
 # Retrieving the data from the files
+#---------------------------------------
+
 sete=[]
 for j in range(len(evol)):
     e=evol[j]
@@ -490,19 +515,24 @@ tl=[]
 for i in range(len(sete)):
     tl.append(len(sete[i][0][0]))
 
-# Setting the plots
+
+#--------------------------------------
+# Setup of the plots
+#--------------------------------------
 
 fig=plt.figure(num=10,figsize=(16,9))
 
 # General title
+
 fig.suptitle('Spatial fields in the model MAOOAM')
-#fig.text(0.42,0.92,r'Parameters : '+r'$\delta = d/f_0 = %.3e $ , $C_o = ' % dd +str(CO)+r'$')
 
 # General subtitle
+
 suptit=r'atmosphere $'+ageom.replace('x','x$-$')+r'y$  ocean $'+ogeom.replace('x','x$-$')+r'y$'
 fig.text(0.42,0.92,'Resolution : '+suptit)
 
 # Setting the six views
+
 ax1=fig.add_subplot(2,3,1)
 ax2=fig.add_subplot(2,3,4,projection='3d')
 ax3=fig.add_subplot(2,3,2)
@@ -520,7 +550,8 @@ ax4.set_title(Zlab[2])
 ax5.set_title(Zlab[1])
 ax6.set_title(Zlab[3])
 
-# Attractor axis ranges and labels
+# 3D view axis ranges and labels
+#----------------------------------
 
 # Range
 #ax.view_init(20,24)
@@ -547,13 +578,12 @@ smin[1]=smin[1]-dmm[1]*mv
 smin[2]=smin[2]-dmm[2]*mv
 
 # Setting the limits
-#print smin,smax
 ax2.set_xlim(smin[0],smax[0])
 ax2.set_ylim(smin[1],smax[1])
 ax2.set_zlim(smin[2],smax[2])
 fig.canvas.draw()
 
-# Setting the ticks and the labels on the attractor view
+# Setting the ticks and the labels on the 3D view
 
 # x ticks and axis label
 
@@ -677,7 +707,8 @@ ax2.set_zlabel(''+r'$'+vl[showp3[0]]+str(n3[0]+1)+r'}$',fontdict={'size':18})
 [t.set_va('center') for t in ax2.get_zticklabels()]
 [t.set_ha('left') for t in ax2.get_zticklabels()]
 
-# other views labels
+# Other views labels
+#--------------------
 
 ax3.set_xlabel('$x^\prime$')
 ax3.set_ylabel('$y^\prime$')
@@ -711,10 +742,12 @@ if fromaddr and toaddr:
     server.sendmail(fromaddr, toaddr, text)
     server.quit()
 
-# Actually computing the fields
+#------------------------------
+# Spatial fields computation
+#------------------------------
 
 # Setting the grids
-delta='' #raw_input('Space between points on the grid (default = 0.025) ?') # 
+delta=raw_input('Space between points on the grid (default = 0.025) ?') 
 if not delta:
     delta=0.025
 else:
@@ -724,6 +757,7 @@ y = np.arange(0., np.pi, delta)
 X, Y = np.meshgrid(x, y)
 sh=X.shape
 
+# Preparing space to store the fields
 
 Z=[]
 Zm=[]
@@ -739,19 +773,16 @@ geoap=[]
 mmin=np.zeros((4))
 mmax=np.zeros((4))
 
-# Setting the number of frames and the time of the first and the last
-#tl[0]=tl[0]/20
-#tl[0]=int(tl[0]*0.9)
+# Setting the number of frames and the time of the first and the last one
 while True:
     print 'Total number of frames:',tl[0]
     if dim:
         print 'Time between each frame is '+str((tu[1]-tu[0])*at)+' days'
     else:
         print 'Time between each frame is '+str(tu[1]-tu[0])+' timeunit'
-    sti=str(nlf/2) #raw_input('Start at frame (default = first) ?')
-    mti=min(nlf/2-1,15000)
-    ste=str(mti+nlf/2) #raw_input('End at frame (default = last) ?')
-    ite='3' #raw_input('Interval (default = 1) ?')
+    sti=raw_input('Start at frame (default = first) ?')
+    ste=raw_input('End at frame (default = last) ?')
+    ite=raw_input('Interval (default = 1) ?')
     if not sti:
         sti=0
     else:
@@ -773,14 +804,15 @@ while True:
         print 'for a total time of '+str((ste-sti)*(tu[1]-tu[0]))+' years'
     else:
         print 'for a total time of '+str((ste-sti)*(tu[1]-tu[0]))+' timeunits'
-    print 'It will take '+str((ste-sti)*len(mmin)*sh[0]*sh[1]*8/(1.e6*ite))+' Mbytes in the memory! ('+str((ste-sti)*len(mmin)*sh[0]*sh[1]*8/(1.e9*ite))+' GB)'
-    x='y' #raw_input('Do you agree (y/n) ?')
-    if x=='y':
+    print 'It will take '+str((ste-sti)*len(mmin)*sh[0]*sh[1]*8*4/(1.e6*ite))+' Mbytes in the memory! ('+str((ste-sti)*len(mmin)*sh[0]*sh[1]*8*4/(1.e9*ite))+' GB)'
+    x=raw_input('Do you agree (y/N) ?')
+    if x in ['y','Y']:
         break
     else:
         print "Let's start again..."
 
 # Loop generating the frame (computing the fields)
+#-------------------------------------------------
 startt=time.time()
 x=sete[0]
 for i in range(sti,ste,ite):
@@ -802,6 +834,28 @@ for i in range(sti,ste,ite):
             Z[Zsel.index('uo')].append(U)
         if 'vo' in Zsel:
             Z[Zsel.index('vo')].append(V)
+
+    if 'ua' in Zsel or 'va' in Zsel:
+        U,V=avec(X,Y,x[0][:,i]/geo)
+        if 'ua' in Zsel:
+            Z[Zsel.index('ua')].append(U)
+        if 'va' in Zsel:
+            Z[Zsel.index('va')].append(V)
+
+    if 'ua1' in Zsel or 'va1' in Zsel:
+        U,V=avec(X,Y,x[0][:,i]/geo)+avec(X,Y,x[1][:,i]/geo)
+        if 'ua1' in Zsel:
+            Z[Zsel.index('ua1')].append(U)
+        if 'va1' in Zsel:
+            Z[Zsel.index('va1')].append(V)
+
+    if 'ua3' in Zsel or 'va3' in Zsel:
+        U,V=avec(X,Y,x[0][:,i]/geo)+avec(X,Y,x[1][:,i]/geo)
+        if 'ua3' in Zsel:
+            Z[Zsel.index('ua3')].append(U)
+        if 'va3' in Zsel:
+            Z[Zsel.index('va3')].append(V)
+
 
     if 'p3' in Zsel:
         Z[Zsel.index('p3')].append(astream(X,Y,x[0][:,i])-astream(X,Y,x[1][:,i]))
@@ -832,8 +886,11 @@ diff.append(geoap)
 smax=np.amax(diff[4])
 smin=np.amin(diff[4])
 
-# Now that the geopential height difference have been computed
- # we can set the limit of the view showing it
+#------------------------------------------
+# Last figures setup
+#------------------------------------------
+
+# Setting the limit of the view showing the differences
 ax1.set_xlim(0.,sete[0][4][0,ste-1]-sete[0][4][0,sti])
 if smin>0.:
     ax1.set_ylim(0.9*smin,1.1*smax)
@@ -843,8 +900,9 @@ ax1.set_xlabel('time (years)')
 
 difflab=Zlabmini+['Geopot. H. (m)']
 
-# Initializing the animation
-
+#------------------------------
+# Initialization of the animation
+#------------------------------
 
 # Difference plot
 
@@ -863,25 +921,18 @@ x=sete[0]
 ax2.plot(x[sd[showp[0]]][n1[0],::ival],x[sd[showp2[0]]][n2[0],::ival],zs=x[sd[showp3[0]]][n3[0],::ival],marker=ms[0],linestyle=ls[0])#,label=fl[i])
 xpoint,=ax2.plot([],[],zs=[],marker=',',linestyle='',color='r')#,label=fl[i])
 
-# Atm. Temperature plot
+# Spatial plots
 
-im2=ax3.imshow(Zat[0],interpolation='bilinear', cmap=cm.coolwarm, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[2],vmax=mmax[2]) # ,label='year '+str(ny))
+im2=ax3.imshow(Z[0][0],interpolation='bilinear', cmap=cm.coolwarm, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[0],vmax=mmax[0]) 
 cl2=fig.colorbar(im2,ax=ax3)#,format=ticker.FuncFormatter(fmt))
 
-# Ocean Temperature plot
-
-im1=ax4.imshow(Zot[0],interpolation='bilinear', cmap=cm.coolwarm, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[1],vmax=mmax[1]) # ,label='year '+str(ny))
-# im1=ax4.imshow(Zdt[0],interpolation='bilinear', cmap=cm.coolwarm, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[5],vmax=mmax[5]) # ,label='year '+str(ny))
+im1=ax4.imshow(Z[2][0],interpolation='bilinear', cmap=cm.coolwarm, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[2],vmax=mmax[2])
 cl1=fig.colorbar(im1,ax=ax4)#,format=ticker.FuncFormatter(fmt))
 
-# Atmospheric stream plot
-
-im3=ax5.imshow(Zap[0],interpolation='bilinear', cmap=cm.gist_rainbow_r, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[3],vmax=mmax[3]) # ,label='year '+str(ny))
+im3=ax5.imshow(Z[1][0],interpolation='bilinear', cmap=cm.gist_rainbow_r, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[1],vmax=mmax[1])
 cl3=fig.colorbar(im3,ax=ax5)#,format=ticker.FuncFormatter(fmt))
 
-# Ocean stream plot
-
-im0=ax6.imshow(Zop[0],interpolation='bilinear', cmap=cm.gist_rainbow_r, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[0],vmax=mmax[0]) # ,label='year '+str(ny))
+im0=ax6.imshow(Z[3][0],interpolation='bilinear', cmap=cm.gist_rainbow_r, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[3],vmax=mmax[3]) # ,label='year '+str(ny))
 cl0=fig.colorbar(im0,ax=ax6,format=ticker.FuncFormatter(fmt))
 
 # im0=ax6.streamplot(X,Y,Uop[0],Vop[0],color=np.sqrt(Uop[0]**2+Vop[0]**2),linewidth=2,cmap=cm.Reds)
@@ -923,7 +974,7 @@ def animate(i):
     xpoint.set_3d_properties(x[sd[showp3[0]]][n3[0],l:l+1])
     
     # Update of the geopotential plot
-    for j in [3]: #,4
+    for j in [4]:
         xrlines[j].set_xdata(x[4][0,:l+1:ival])
         xrlines[j].set_ydata(diff[j][:l+1:ival])
 
@@ -931,56 +982,56 @@ def animate(i):
     # ax6.cla()
     # # im0=ax6.streamplot(X,Y,Uop[l],Vop[l],color=np.sqrt(Uop[l]**2+Vop[l]**2),linewidth=2,cmap=cm.Reds)
     # im0=ax6.quiver(X,Y,Uop[l],Vop[l])
-    im0.set_data(Zop[l])
+    im0.set_data(Z[3][l])
     cl0.on_mappable_changed(im0)
-    im1.set_data(Zot[l])
+    im1.set_data(Z[2][l])
     cl1.on_mappable_changed(im1)
-    im2.set_data(Zat[l])
+    im2.set_data(Z[0][l])
     cl2.on_mappable_changed(im2)
-    im3.set_data(Zap[l])
+    im3.set_data(Z[1][l])
     cl3.on_mappable_changed(im3)
        
     return xrlines,xpoint,im0,im1,im2,im3#,xilines
 
 # Computing the animation
 
-# showb=raw_input('Do you want to plot it or to make a movie (P/M) ?')
-showb='M'
+showb=raw_input('Do you want to plot it or to make a movie (p/M) ?')
+if not showb:
+    showb='M'
 
 lengf=len(MZot)
 
 
-if showb=='P' or showb=='p':
+if showb in ['P','p']:
     ani = anim.FuncAnimation(fig, animate, frames=(lengf)/ival, interval=10, blit=False)
     plt.show()
 else:
     while True:
-        # mival=raw_input('Interval between frames in milliseconds ? (default=40)')
-        mival=40
+        mival=raw_input('Interval between frames in milliseconds ? (default=40)')
         if not mival:
             mival=40
         else:
             mival=int(mival)
         print 'The FPS will be '+str(int(1./(mival/1000.)))+' frames per second.'
         print 'The movie will last '+str(mival*lengf/ival/1.e3)+' seconds.'
-        # x=raw_input('Do you agree with this ? (y/n)')
-        x='y'
-        if x=='y':
+        x=raw_input('Do you agree with this ? (y/N)')
+        if x in ['y','Y']:
             break
         else:
             print 'No? Ok...'
 
     # Setting the metadata of the video
     print ' Setting metadata of the movie, please answer the questions:'
-    #tit=raw_input('Title of the movie?')
-    tit='test' # Title
-    #auth=raw_input('Author(s)?')
-    auth='test' # Author
-    lic='test' # License
-    #year=raw_input('Year?')
-    year='1980' # Year of production
-    # comment=raw_input('Comment?')
-    comment='test' # Comments
+    tit=raw_input('Title of the movie?')
+    # tit='test' # Title
+    auth=raw_input('Author(s)?')
+    # auth='test' # Author
+    lic=raw_input('License?')
+    # lic='test' # License
+    year=raw_input('Year?')
+    # year='1980' # Year of production
+    comment=raw_input('Comment?')
+    # comment='test' # Comments
     meta={'title':tit,'artist':auth,'copyright':lic,'comment':comment,'year':year}
 
     # Sending a mail to alert that the video encoding has begun
@@ -1004,10 +1055,9 @@ else:
 # Actual video generation
     ani = anim.FuncAnimation(fig, animate, frames=(lengf)/ival, interval=mival, blit=False)
     
-    # ssav=raw_input('Output filename ? (default : "out_d'+str(delt)+'_Co'+str(CO)+'.mp4")')
-    ssav='out.mp4'
-    # if not ssav:
-    #     ssav='out_d'+str(delt)+'_Co'+str(CO)+'.mp4'
+    ssav=raw_input('Output filename ? (default : "out.mp4")')
+    if not ssav:
+        ssav='out.mp4'
     ani.save(ssav,writer='mencoder',bitrate=None,codec='mpeg4:vbitrate=3000',metadata=meta) #extra_args=['-vf','scale=1024:576'],
         
 endt=time.time()
