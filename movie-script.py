@@ -113,8 +113,8 @@ Zlabel={'at':"Atm. Temperature ($^\circ\!$C)",'ot':'Ocean Temperature ($^\circ\!
 
 Zlabelmini={'at':"Atm. T$^\circ$)",'ot':'Oc. T$^\circ$)','dt':'Oc.-Atm. T$^\circ$ diff.','ap':r'Geopot. height','op':r'Oc. $\psi_o$','p3':r'Atm. $\psi_a^3$','p1':r'Atm. $\psi_a^1$','ua':'Atm. U wind','va':'Atm. V wind','uo':'Ocean U current','vo':'Ocean V current','ua3':'Atm. low. U wind','va3':'Atm. low. V wind','ua1':'Atm. up. U wind','va1':'Atm. up. V wind'}
 
-
 Zlab=[]
+Zlabmini=[]
 for x in Zsel:
     Zlab.append(Zlabel[x])
     Zlabmini.append(Zlabelmini[x])
@@ -161,6 +161,9 @@ def fmt(x, pos):
         return unicode(r'{}$\times 10^{{{}}}$'.format(a, b)).replace(u'-',u'\u2212',1)
     else:
         return unicode(r'{}$\times 10^{{{}}}$'.format(a, b))
+
+Zformat={'at':None,'ot':None,'dt':None,'ap':None,'op':ticker.FuncFormatter(fmt),'p3':None,'p1':None,'ua':None,'va':None,'uo':None,'vo':None,'ua3':None,'va3':None,'ua1':None,'va1':None}
+
 
 # Loading the geometries given as arguments or by the users
 #-----------------------------------------------------------
@@ -545,10 +548,10 @@ ax6=fig.add_subplot(2,3,6)
 ax1.set_title("Differences plot")
 ax2.set_title('3-D phase space projection')
 ax2.text2D(0.5, 0.9,'(Non-dimensional units)', horizontalalignment='center',verticalalignment='center',transform=ax2.transAxes,fontdict={'size':12})
-ax3.set_title(Zlab[0])
-ax4.set_title(Zlab[2]) 
-ax5.set_title(Zlab[1])
-ax6.set_title(Zlab[3])
+ax3.set_title(Zlab[1])
+ax4.set_title(Zlab[3]) 
+ax5.set_title(Zlab[0])
+ax6.set_title(Zlab[2])
 
 # 3D view axis ranges and labels
 #----------------------------------
@@ -804,7 +807,7 @@ while True:
         print 'for a total time of '+str((ste-sti)*(tu[1]-tu[0]))+' years'
     else:
         print 'for a total time of '+str((ste-sti)*(tu[1]-tu[0]))+' timeunits'
-    print 'It will take '+str((ste-sti)*len(mmin)*sh[0]*sh[1]*8*4/(1.e6*ite))+' Mbytes in the memory! ('+str((ste-sti)*len(mmin)*sh[0]*sh[1]*8*4/(1.e9*ite))+' GB)'
+    print 'It will take '+str((ste-sti)*len(mmin)*(sh[0]*sh[1]+4*3+1)*8/(1.e6*ite))+' Mbytes in the memory! ('+str((ste-sti)*len(mmin)*(sh[0]*sh[1]+4*3+1)*8/(1.e9*ite))+' GB)'
     x=raw_input('Do you agree (y/N) ?')
     if x in ['y','Y']:
         break
@@ -923,17 +926,17 @@ xpoint,=ax2.plot([],[],zs=[],marker=',',linestyle='',color='r')#,label=fl[i])
 
 # Spatial plots
 
-im2=ax3.imshow(Z[0][0],interpolation='bilinear', cmap=cm.coolwarm, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[0],vmax=mmax[0]) 
+im2=ax3.imshow(Z[1][0],interpolation='bilinear', cmap=cm.coolwarm, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[1],vmax=mmax[1]) 
 cl2=fig.colorbar(im2,ax=ax3)#,format=ticker.FuncFormatter(fmt))
 
-im1=ax4.imshow(Z[2][0],interpolation='bilinear', cmap=cm.coolwarm, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[2],vmax=mmax[2])
+im1=ax4.imshow(Z[3][0],interpolation='bilinear', cmap=cm.coolwarm, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[3],vmax=mmax[3])
 cl1=fig.colorbar(im1,ax=ax4)#,format=ticker.FuncFormatter(fmt))
 
-im3=ax5.imshow(Z[1][0],interpolation='bilinear', cmap=cm.gist_rainbow_r, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[1],vmax=mmax[1])
+im3=ax5.imshow(Z[0][0],interpolation='bilinear', cmap=cm.gist_rainbow_r, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[0],vmax=mmax[0])
 cl3=fig.colorbar(im3,ax=ax5)#,format=ticker.FuncFormatter(fmt))
 
-im0=ax6.imshow(Z[3][0],interpolation='bilinear', cmap=cm.gist_rainbow_r, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[3],vmax=mmax[3]) # ,label='year '+str(ny))
-cl0=fig.colorbar(im0,ax=ax6,format=ticker.FuncFormatter(fmt))
+im0=ax6.imshow(Z[2][0],interpolation='bilinear', cmap=cm.gist_rainbow_r, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[2],vmax=mmax[2]) # ,label='year '+str(ny))
+cl0=fig.colorbar(im0,ax=ax6,format=Zformat[Zsel[2]])
 
 # im0=ax6.streamplot(X,Y,Uop[0],Vop[0],color=np.sqrt(Uop[0]**2+Vop[0]**2),linewidth=2,cmap=cm.Reds)
 
@@ -973,7 +976,7 @@ def animate(i):
     xpoint.set_data(x[sd[showp[0]]][n1[0],l:l+1],x[sd[showp2[0]]][n2[0],l:l+1])
     xpoint.set_3d_properties(x[sd[showp3[0]]][n3[0],l:l+1])
     
-    # Update of the geopotential plot
+    # Update of the difference plot
     for j in [4]:
         xrlines[j].set_xdata(x[4][0,:l+1:ival])
         xrlines[j].set_ydata(diff[j][:l+1:ival])
@@ -982,14 +985,15 @@ def animate(i):
     # ax6.cla()
     # # im0=ax6.streamplot(X,Y,Uop[l],Vop[l],color=np.sqrt(Uop[l]**2+Vop[l]**2),linewidth=2,cmap=cm.Reds)
     # im0=ax6.quiver(X,Y,Uop[l],Vop[l])
-    im0.set_data(Z[3][l])
-    cl0.on_mappable_changed(im0)
-    im1.set_data(Z[2][l])
-    cl1.on_mappable_changed(im1)
-    im2.set_data(Z[0][l])
+    im2.set_data(Z[1][l])
     cl2.on_mappable_changed(im2)
-    im3.set_data(Z[1][l])
+    im1.set_data(Z[3][l])
+    cl1.on_mappable_changed(im1)
+    im3.set_data(Z[0][l])
     cl3.on_mappable_changed(im3)
+    im0.set_data(Z[2][l])
+    cl0.on_mappable_changed(im0)
+
        
     return xrlines,xpoint,im0,im1,im2,im3#,xilines
 
@@ -999,7 +1003,7 @@ showb=raw_input('Do you want to plot it or to make a movie (p/M) ?')
 if not showb:
     showb='M'
 
-lengf=len(MZot)
+lengf=len(ZM[0])
 
 
 if showb in ['P','p']:
@@ -1023,15 +1027,20 @@ else:
     # Setting the metadata of the video
     print ' Setting metadata of the movie, please answer the questions:'
     tit=raw_input('Title of the movie?')
-    # tit='test' # Title
+    if not tit:
+        tit='test' # Title
     auth=raw_input('Author(s)?')
-    # auth='test' # Author
+    if not auth:
+        auth='test' # Author
     lic=raw_input('License?')
-    # lic='test' # License
+    if not lic:
+        lic='MIT' # License
     year=raw_input('Year?')
-    # year='1980' # Year of production
+    if not year:
+        year='1982' # Year of production
     comment=raw_input('Comment?')
-    # comment='test' # Comments
+    if not comment:
+        comment='test' # Comments
     meta={'title':tit,'artist':auth,'copyright':lic,'comment':comment,'year':year}
 
     # Sending a mail to alert that the video encoding has begun
