@@ -37,25 +37,95 @@ from email.MIMEMultipart import MIMEMultipart
 from email.MIMEText import MIMEText
 import gzip
 import sys
+import subprocess
+
+#---------------------------------------------
+# Parameter section
+#---------------------------------------------
+
+# Organization of the figures layout
+#-----------------------------------
+
+# ----------------------------------
+# |  diff   |   1      |      3    |
+# ----------------------------------
+# |  3D     |   2      |      4    |
+# ----------------------------------
+# diff : time series of the difference of quantities
+# 3D   : 3D phase space projection
+# 1--4 : spatial fields representations
+
+# Selection of the spatial fields
+#-----------------------------------
+
+# Zsel : List holding the displayed fields in the order of the layout
+# 
+# Available labels:   - at : atmospheric temperature at 500 mb
+#                     - ap : atmospheric pressure at 500 mb
+#                     - ot : oceanic temperature
+#                     - op : oceanic streamfunction
+#                     - p3 : oceanic lower layer streamfunction
+#                     - p1 : oceanic upper layer streamfunction
+#                     - dt : ocean-atmosphere temperature difference
+
+Zsel=['ap','at','op','ot']
+
+# Mailserver configuration
+#--------------------------
 
 # Defining mail address from where and to which send mails
 
 fromaddr = ""
 toaddr = ""
 
+# Setting of some general model parameters (those in general do not change)
+#--------------------------------------------------------------------------
+nr=1.5
+al=0.
+f0=0.0001032
+L=5000000./np.pi
+rpr=L**2*f0
+RR=287.
+RK=rpr*f0/RR
+dim=True
+at=365.25
+ct=(1/(f0*24*3600))/at 
+geo=f0/9.81
+
+
+#--------------------------
+# Preparation
+#--------------------------
+
+# Defining and ordering labels
+#-----------------------------
+
+Zlabel={'at':"Atm. Temperature ($^\circ\!$C)",'ot':'Ocean Temperature ($^\circ\!$C)','dt':'Oc.-Atms Temperature diff.','ap':r'Geopotential height $\psi_a f_0/g$ (m)','op':r'Ocean $\psi_o$ (m$^2$s$^{-1}$)'}
+
+Zlab=[]
+for x in Zsel:
+    Zlab.append(Zlabel[x])
+    Zlabmini.append(Zlabelmini[x])
+
+#Defining some labels to be used later
+sd={'psi':0,'theta':1,'A':2,'T':3,'time':4}
+vl={'psi':r'\psi_{a,','theta':r'\theta_{a,','A':r'\psi_{o,','T':r'\theta_{o,','time':r't'}
+dimd={'psi':rpr*geo,'theta':2*RK,'A':rpr,'T':RK,'time':ct}
+
+
+
 # Utility functions
+#------------------
 
 #Count the number of line of a file
 def linecount(filename):
-    lines = 0
     if filename[-3:]=='.gz':
+        lines = 0
         with gzip.open(filename, "r+") as f:
             for x in f:
                 lines += 1
     else:
-        with open(filename, "r+") as f:
-            for x in f:
-                lines += 1
+        lines=int(subprocess.Popen("cat "+filename+" | wc -l", shell=True, stdout=subprocess.PIPE).stdout.read())
     return lines
 
 # Gives the order of a number
@@ -137,24 +207,6 @@ for w in oms:
     ii+=1
     x={'Nx':w[0]/2.,'Ny':w[1]}
     oftable[ii]=x
-
-# Setting of some general model parameters (those in general do not change)
-nr=1.5
-al=0.
-f0=0.0001032
-L=5000000./np.pi
-rpr=L**2*f0
-RR=287.
-RK=rpr*f0/RR
-dim=True
-at=365.25
-ct=(1/(f0*24*3600))/at 
-geo=f0/9.81
-
-#Defining some dico to be used later
-sd={'psi':0,'theta':1,'A':2,'T':3,'time':4}
-vl={'psi':r'\psi_{a,','theta':r'\theta_{a,','A':r'\psi_{o,','T':r'\theta_{o,','time':r't'}
-dimd={'psi':rpr*geo,'theta':2*RK,'A':rpr,'T':RK,'time':ct}
 
 
 # Defining the basis functions and their partial derivatives
@@ -428,10 +480,10 @@ for j in range(len(evol)):
     tup=tu.copy()
     tup.shape=1,len(tu)
     if dim:
-        sete.append([np.array(psi)*dimd['psi'],np.array(theta)*dimd['theta'],np.array(aa)*dimd['A'],np.array(tt)*dimd['T'],tup*dimd['time'],(np.array(psi)-np.array(theta))*dimd['psi']])
+        sete.append([np.array(psi)*dimd['psi'],np.array(theta)*dimd['theta'],np.array(aa)*dimd['A'],np.array(tt)*dimd['T'],tup*dimd['time']])
         tu=tu*ct
     else:
-        sete.append([np.array(psi),np.array(theta),np.array(aa),np.array(tt),tup,(np.array(psi)-np.array(theta))])
+        sete.append([np.array(psi),np.array(theta),np.array(aa),np.array(tt),tup])
 
 ival=1
 tl=[]
@@ -460,14 +512,13 @@ ax6=fig.add_subplot(2,3,6)
 
 # Views title
 
-ax1.set_title("Geopotential height difference (m)")
+ax1.set_title("Differences plot")
 ax2.set_title('3-D phase space projection')
 ax2.text2D(0.5, 0.9,'(Non-dimensional units)', horizontalalignment='center',verticalalignment='center',transform=ax2.transAxes,fontdict={'size':12})
-ax3.set_title("Atm. Temperature ($^\circ\!$C)")
-ax4.set_title('Ocean Temperature ($^\circ\!$C)') # You can choose between ocean temp. or ocean-atm. temp. difference
-# ax4.set_title('Oc.-Atms Temperature diff.')
-ax5.set_title(r'Geopotential height $\psi_a f_0/g$ (m)',fontdict={'size':14})
-ax6.set_title(r'Ocean $\psi_o$ (m$^2$s$^{-1}$)')#,fontdict={'size':14})
+ax3.set_title(Zlab[0])
+ax4.set_title(Zlab[2]) 
+ax5.set_title(Zlab[1])
+ax6.set_title(Zlab[3])
 
 # Attractor axis ranges and labels
 
@@ -643,22 +694,22 @@ ax6.set_ylabel('$y^\prime$')
 # Sending a mail to alert that the first stage is completed (loading the data
 # and preparing the plots)
 
-msg = MIMEMultipart()
-msg['From'] = fromaddr
-msg['To'] = toaddr
-msg['Subject'] = "Movie run info"
+if fromaddr and toaddr:
+    msg = MIMEMultipart()
+    msg['From'] = fromaddr
+    msg['To'] = toaddr
+    msg['Subject'] = "Movie run info"
 
-body = "The run to generate the video for the geometry:\n\n"
-body += "    atm. "+ageom+" -  oc."+ogeom+"\n\n"
-body += "has finished loading data! "
+    body = "The run to generate the video for the geometry:\n\n"
+    body += "    atm. "+ageom+" -  oc."+ogeom+"\n\n"
+    body += "has finished loading data! "
 
-msg.attach(MIMEText(body, 'plain'))
+    msg.attach(MIMEText(body, 'plain'))
 
-server = smtplib.SMTP('localhost')
-text = msg.as_string()
-server.sendmail(fromaddr, toaddr, text)
-server.quit()
-
+    server = smtplib.SMTP('localhost')
+    text = msg.as_string()
+    server.sendmail(fromaddr, toaddr, text)
+    server.quit()
 
 # Actually computing the fields
 
@@ -673,32 +724,20 @@ y = np.arange(0., np.pi, delta)
 X, Y = np.meshgrid(x, y)
 sh=X.shape
 
-# List holding the fields and their minima and maxima
-Zot=[]
-Uop=[]
-Vop=[]
-Zop=[]
-Zat=[]
-Zap=[]
-Zp3=[]
-Zdt=[]
-mZot=[]
-mZop=[]
-mZat=[]
-mZap=[]
-mZp3=[]
-mZdt=[]
-MZot=[]
-MZop=[]
-MZat=[]
-MZap=[]
-MZp3=[]
-MZdt=[]
+
+Z=[]
+Zm=[]
+ZM=[]
+for i in range(4):
+    Z.append([])
+    Zm.append([])
+    ZM.append([])
+
 geoap=[]
 
 
-mmin=[0.,0.,0.,0.,0.,0.]
-mmax=[0.,0.,0.,0.,0.,0.]
+mmin=np.zeros((4))
+mmax=np.zeros((4))
 
 # Setting the number of frames and the time of the first and the last
 #tl[0]=tl[0]/20
@@ -748,102 +787,72 @@ for i in range(sti,ste,ite):
     if np.mod(i-sti,100*ite)==0:
         print 'Generating the fields in the frame ',i,'('+str((i-sti)/ite)+')'
         print 'At time t=',x[4][0,i],'years'
-    Zop.append(ostream_cons(X,Y,x[2][:,i]))
-    # U,V=ovec(X,Y,x[2][:,i])
-    # Uop.append(U)
-    # Vop.append(V)
-    Zot.append(ostream(X,Y,x[3][:,i]))
-    Zat.append(astream(X,Y,x[1][:,i]))
-    Zap.append(astream(X,Y,x[0][:,i]))
+    if 'op' in Zsel:
+        Z[Zsel.index('op')].append(ostream_cons(X,Y,x[2][:,i]))
+    if 'ot' in Zsel:
+        Z[Zsel.index('ot')].append(ostream(X,Y,x[3][:,i]))
+    if 'at' in Zsel:
+        Z[Zsel.index('at')].append(astream(X,Y,x[1][:,i]))
+    if 'ap' in Zsel:
+        Z[Zsel.index('ap')].append(astream(X,Y,x[0][:,i]))
 
-    # Zp3.append(astream(X,Y,x[5][:,i]))
-    # Zdt.append(Zot[-1]-Zat[-1])
+    if 'uo' in Zsel or 'vo' in Zsel:
+        U,V=ovec(X,Y,x[2][:,i])
+        if 'uo' in Zsel:
+            Z[Zsel.index('uo')].append(U)
+        if 'vo' in Zsel:
+            Z[Zsel.index('vo')].append(V)
 
-    MZop.append(np.amax(Zop[-1]))
-    mZop.append(np.amin(Zop[-1]))
+    if 'p3' in Zsel:
+        Z[Zsel.index('p3')].append(astream(X,Y,x[0][:,i])-astream(X,Y,x[1][:,i]))
+    if 'p1' in Zsel:
+        Z[Zsel.index('p1')].append(astream(X,Y,x[0][:,i])+astream(X,Y,x[1][:,i]))
+    if 'dt' in Zsel:
+        Z[Zsel.index('dt')].append(ostream(X,Y,x[3][:,i])-astream(X,Y,x[1][:,i]))
 
-    # MZop.append(np.amax(np.sqrt(Uop[-1]**2+Vop[-1]**2)))
-    # mZop.append(np.amin(np.sqrt(Uop[-1]**2+Vop[-1]**2)))
+    for i in range(4):
+        ZM[i].append(np.amax(Z[i][-1]))
+        Zm[i].append(np.amin(Z[i][-1]))
 
-    MZot.append(np.amax(Zot[-1]))
-    mZot.append(np.amin(Zot[-1]))
-    MZap.append(np.amax(Zap[-1]))
-    mZap.append(np.amin(Zap[-1]))
-    MZat.append(np.amax(Zat[-1]))
-    mZat.append(np.amin(Zat[-1]))
     geoap.append(geodiff(x[0][:,i]))
-    # MZp3.append(np.amax(Zp3[-1]))
-    # mZp3.append(np.amin(Zp3[-1]))
-    # MZdt.append(np.amax(Zdt[-1]))
-    # mZdt.append(np.amin(Zdt[-1]))
 
+    for i in range(4):
+        mmax[i]=max(mmax[i],ZM[i][-1])
+        mmin[i]=min(mmin[i],Zm[i][-1])
     
-    mmax[0]=max(mmax[0],MZop[-1])
-    mmin[0]=min(mmin[0],mZop[-1])
-    mmax[1]=max(mmax[1],MZot[-1])
-    mmin[1]=min(mmin[1],mZot[-1])
-    mmax[2]=max(mmax[2],MZat[-1])
-    mmin[2]=min(mmin[2],mZat[-1])
-    mmax[3]=max(mmax[3],MZap[-1])
-    mmin[3]=min(mmin[3],mZap[-1])
-    # mmax[4]=max(mmax[4],MZp3[-1])
-    # mmin[4]=min(mmin[4],mZp3[-1])
-    # mmax[5]=max(mmax[5],MZdt[-1])
-    # mmin[5]=min(mmin[5],mZdt[-1])
-    
-    
-
-mZot=np.array(mZot)
-mZop=np.array(mZop)
-mZat=np.array(mZat)
-mZap=np.array(mZap)
-# mZp3=np.array(mZp3)
-# mZdt=np.array(mZdt)
-MZot=np.array(MZot)
-MZop=np.array(MZop)
-MZat=np.array(MZat)
-MZap=np.array(MZap)
+ZM=np.array(ZM)
+Zm=np.array(Zm)
 geoap=np.array(geoap)
-# MZp3=np.array(MZp3)
-# MZdt=np.array(MZdt)
 
-dZot=MZot-mZot
-dZop=MZop-mZop
-dZap=MZap-mZap
-dZat=MZat-mZat
-# dZp3=MZp3-mZp3
+diff=[]
+for i in range(4):
+    diff.append(ZM[i]-Zm[i])
+diff.append(geoap)
 
-# smax=max(np.amax(dZp3),np.amax(dZap))
-# smin=min(np.amin(dZp3),np.amin(dZap))
-# smax=np.amax(dZap)
-# smin=np.amin(dZap)
-smax=np.amax(geoap)
-smin=np.amin(geoap)
+smax=np.amax(diff[4])
+smin=np.amin(diff[4])
 
 # Now that the geopential height difference have been computed
  # we can set the limit of the view showing it
 ax1.set_xlim(0.,sete[0][4][0,ste-1]-sete[0][4][0,sti])
-# ax1.set_xticks([0.,40000.,80000.])
 if smin>0.:
     ax1.set_ylim(0.9*smin,1.1*smax)
 else:
     ax1.set_ylim(1.1*smin,1.1*smax)
 ax1.set_xlabel('time (years)')
-#ax1.set_ylabel('Geopotential height (m)')
 
-diff=[dZot,dZat,dZop,geoap,dZap]#,dZp3]
-difflab=['Ocean temp.','Atm. temp.',r'Ocean $\Psi$',r'Atm. $\Psi$',r'$\Psi_3$']
+difflab=Zlabmini+['Geopot. H. (m)']
 
 # Initializing the animation
 
 
-# Geopotential height difference plot
+# Difference plot
 
 lx=5
 xrlines=[]
 for i in range(lx):
     xrlines.append(None)
-for i in [3]: #,4
+for i in [4]:
     xrlines[i],=ax1.plot([],[],label=difflab[i])
 
 # ax1.legend()
@@ -975,22 +984,22 @@ else:
     meta={'title':tit,'artist':auth,'copyright':lic,'comment':comment,'year':year}
 
     # Sending a mail to alert that the video encoding has begun
+    if fromaddr and toaddr:
+        msg = MIMEMultipart()
+        msg['From'] = fromaddr
+        msg['To'] = toaddr
+        msg['Subject'] = "Movie run info"
 
-    msg = MIMEMultipart()
-    msg['From'] = fromaddr
-    msg['To'] = toaddr
-    msg['Subject'] = "Movie run info"
+        body = "The run to generate the video for the geometry:\n\n"
+        body += "    atm. "+ageom+" -  oc."+ogeom+"\n\n"
+        body += "starts the video encoding! "
+        
+        msg.attach(MIMEText(body, 'plain'))
 
-    body = "The run to generate the video for the geometry:\n\n"
-    body += "    atm. "+ageom+" -  oc."+ogeom+"\n\n"
-    body += "starts the video encoding! "
-
-    msg.attach(MIMEText(body, 'plain'))
-
-    server = smtplib.SMTP('localhost')
-    text = msg.as_string()
-    server.sendmail(fromaddr, toaddr, text)
-    server.quit()
+        server = smtplib.SMTP('localhost')
+        text = msg.as_string()
+        server.sendmail(fromaddr, toaddr, text)
+        server.quit()
 
 # Actual video generation
     ani = anim.FuncAnimation(fig, animate, frames=(lengf)/ival, interval=mival, blit=False)
@@ -1007,23 +1016,24 @@ endt=time.time()
 
 # Sending a final mail to alert that the video generation has ended.
 
-msg = MIMEMultipart()
-msg['From'] = fromaddr
-msg['To'] = toaddr
-msg['Subject'] = "End of the movie run"
+if fromaddr and toaddr:
+    msg = MIMEMultipart()
+    msg['From'] = fromaddr
+    msg['To'] = toaddr
+    msg['Subject'] = "End of the movie run"
  
-body = "The run to generate the video for the geometry:\n\n"
-body += "    atm. "+ageom+" -  oc."+ogeom+"\n\n"
-body += "is finished. "
+    body = "The run to generate the video for the geometry:\n\n"
+    body += "    atm. "+ageom+" -  oc."+ogeom+"\n\n"
+    body += "is finished. "
 
-m, s = divmod(endt-startt,60)
-h, m = divmod(m,60)
+    m, s = divmod(endt-startt,60)
+    h, m = divmod(m,60)
 
-body += "Time elapsed: "+ "%d:%02d:%02d" % (h,m,s) +' .'
+    body += "Time elapsed: "+ "%d:%02d:%02d" % (h,m,s) +' .'
 
-msg.attach(MIMEText(body, 'plain'))
+    msg.attach(MIMEText(body, 'plain'))
  
-server = smtplib.SMTP('localhost')
-text = msg.as_string()
-server.sendmail(fromaddr, toaddr, text)
-server.quit()
+    server = smtplib.SMTP('localhost')
+    text = msg.as_string()
+    server.sendmail(fromaddr, toaddr, text)
+    server.quit()
