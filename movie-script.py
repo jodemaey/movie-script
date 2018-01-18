@@ -77,7 +77,7 @@ import subprocess
 #                     - va3: atmospheric lower V wind component
 
 
-Zsel=['ap','at','op','ot']
+Zsel=['ap','at','p3','p1']
 
 # Mailserver configuration
 #--------------------------
@@ -163,6 +163,8 @@ def fmt(x, pos):
         return unicode(r'{}$\times 10^{{{}}}$'.format(a, b))
 
 Zformat={'at':None,'ot':None,'dt':None,'ap':None,'op':ticker.FuncFormatter(fmt),'p3':None,'p1':None,'ua':None,'va':None,'uo':None,'vo':None,'ua3':None,'va3':None,'ua1':None,'va1':None}
+
+Zcm={'at':cm.coolwarm,'ot':cm.coolwarm,'dt':cm.coolwarm,'ap':cm.gist_rainbow_r,'op':cm.gist_rainbow_r,'p3':cm.jet,'p1':cm.jet,'ua':cm.hsv_r,'va':cm.hsv_r,'uo':cm.hsv_r,'vo':cm.hsv_r,'ua3':cm.hsv_r,'va3':cm.hsv_r,'ua1':cm.hsv_r,'va1':cm.hsv_r}
 
 
 # Loading the geometries given as arguments or by the users
@@ -839,21 +841,21 @@ for i in range(sti,ste,ite):
             Z[Zsel.index('vo')].append(V)
 
     if 'ua' in Zsel or 'va' in Zsel:
-        U,V=avec(X,Y,x[0][:,i]/geo)
+        U,V=avec(X,Y,x[0][:,i]*(dimd['A']/dimd['psi']))
         if 'ua' in Zsel:
             Z[Zsel.index('ua')].append(U)
         if 'va' in Zsel:
             Z[Zsel.index('va')].append(V)
 
     if 'ua1' in Zsel or 'va1' in Zsel:
-        U,V=avec(X,Y,x[0][:,i]/geo)+avec(X,Y,x[1][:,i]/geo)
+        U,V=avec(X,Y,x[0][:,i]*(dimd['A']/dimd['psi']))+avec(X,Y,x[1][:,i]*(dimd['A']/dimd['theta']))
         if 'ua1' in Zsel:
             Z[Zsel.index('ua1')].append(U)
         if 'va1' in Zsel:
             Z[Zsel.index('va1')].append(V)
 
     if 'ua3' in Zsel or 'va3' in Zsel:
-        U,V=avec(X,Y,x[0][:,i]/geo)+avec(X,Y,x[1][:,i]/geo)
+        U,V=avec(X,Y,x[0][:,i]*(dimd['A']/dimd['psi']))-avec(X,Y,x[1][:,i]*(dimd['A']/dimd['theta']))
         if 'ua3' in Zsel:
             Z[Zsel.index('ua3')].append(U)
         if 'va3' in Zsel:
@@ -861,9 +863,9 @@ for i in range(sti,ste,ite):
 
 
     if 'p3' in Zsel:
-        Z[Zsel.index('p3')].append(astream(X,Y,x[0][:,i])-astream(X,Y,x[1][:,i]))
+        Z[Zsel.index('p3')].append(astream(X,Y,x[0][:,i]*(dimd['A']/dimd['psi']))-astream(X,Y,x[1][:,i]*(dimd['A']/dimd['theta'])))
     if 'p1' in Zsel:
-        Z[Zsel.index('p1')].append(astream(X,Y,x[0][:,i])+astream(X,Y,x[1][:,i]))
+        Z[Zsel.index('p1')].append(astream(X,Y,x[0][:,i]*(dimd['A']/dimd['psi']))+astream(X,Y,x[1][:,i]*(dimd['A']/dimd['theta'])))
     if 'dt' in Zsel:
         Z[Zsel.index('dt')].append(ostream(X,Y,x[3][:,i])-astream(X,Y,x[1][:,i]))
 
@@ -927,16 +929,16 @@ xpoint,=ax2.plot([],[],zs=[],marker=',',linestyle='',color='r')#,label=fl[i])
 
 # Spatial plots
 
-im2=ax3.imshow(Z[1][0],interpolation='bilinear', cmap=cm.coolwarm, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[1],vmax=mmax[1]) 
-cl2=fig.colorbar(im2,ax=ax3)#,format=ticker.FuncFormatter(fmt))
+im2=ax3.imshow(Z[1][0],interpolation='bilinear', cmap=Zcm[Zsel[1]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[1],vmax=mmax[1]) 
+cl2=fig.colorbar(im2,ax=ax3,format=Zformat[Zsel[1]])
 
-im1=ax4.imshow(Z[3][0],interpolation='bilinear', cmap=cm.coolwarm, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[3],vmax=mmax[3])
-cl1=fig.colorbar(im1,ax=ax4)#,format=ticker.FuncFormatter(fmt))
+im1=ax4.imshow(Z[3][0],interpolation='bilinear', cmap=Zcm[Zsel[3]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[3],vmax=mmax[3])
+cl1=fig.colorbar(im1,ax=ax4,format=Zformat[Zsel[3]])
 
-im3=ax5.imshow(Z[0][0],interpolation='bilinear', cmap=cm.gist_rainbow_r, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[0],vmax=mmax[0])
-cl3=fig.colorbar(im3,ax=ax5)#,format=ticker.FuncFormatter(fmt))
+im3=ax5.imshow(Z[0][0],interpolation='bilinear', cmap=Zcm[Zsel[0]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[0],vmax=mmax[0])
+cl3=fig.colorbar(im3,ax=ax5,format=Zformat[Zsel[0]])
 
-im0=ax6.imshow(Z[2][0],interpolation='bilinear', cmap=cm.gist_rainbow_r, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[2],vmax=mmax[2]) # ,label='year '+str(ny))
+im0=ax6.imshow(Z[2][0],interpolation='bilinear', cmap=Zcm[Zsel[2]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[2],vmax=mmax[2]) # ,label='year '+str(ny))
 cl0=fig.colorbar(im0,ax=ax6,format=Zformat[Zsel[2]])
 
 # im0=ax6.streamplot(X,Y,Uop[0],Vop[0],color=np.sqrt(Uop[0]**2+Vop[0]**2),linewidth=2,cmap=cm.Reds)
