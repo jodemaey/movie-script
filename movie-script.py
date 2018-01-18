@@ -867,15 +867,15 @@ for i in range(sti,ste,ite):
     if 'dt' in Zsel:
         Z[Zsel.index('dt')].append(ostream(X,Y,x[3][:,i])-astream(X,Y,x[1][:,i]))
 
-    for i in range(4):
-        ZM[i].append(np.amax(Z[i][-1]))
-        Zm[i].append(np.amin(Z[i][-1]))
-
     geoap.append(geodiff(x[0][:,i]))
 
-    for i in range(4):
-        mmax[i]=max(mmax[i],ZM[i][-1])
-        mmin[i]=min(mmin[i],Zm[i][-1])
+    for j in range(4):
+        ZM[j].append(np.amax(Z[j][-1]))
+        Zm[j].append(np.amin(Z[j][-1]))
+
+    for j in range(4):
+        mmax[j]=max(mmax[j],ZM[j][-1])
+        mmin[j]=min(mmin[j],Zm[j][-1])
     
 ZM=np.array(ZM)
 Zm=np.array(Zm)
@@ -885,6 +885,7 @@ diff=[]
 for i in range(4):
     diff.append(ZM[i]-Zm[i])
 diff.append(geoap)
+
 
 smax=np.amax(diff[4])
 smin=np.amin(diff[4])
@@ -971,6 +972,7 @@ def animate(i):
         xpoint.set_marker('o')
     if np.mod(i,100)==0:
         print i
+
     l=i*ival
     x=sete[0]  #update of the attractor plot locator
     xpoint.set_data(x[sd[showp[0]]][n1[0],l:l+1],x[sd[showp2[0]]][n2[0],l:l+1])
