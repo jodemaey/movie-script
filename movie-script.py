@@ -13,7 +13,7 @@
 # - numpy
 
 # TODO : - Move the parameters at the beginning of the code
-#        - Generate frame on the "fly"
+#        - Generate frames on the "fly"
 
 # Loading of the libraries
 
@@ -96,7 +96,6 @@ L=5000000./np.pi
 rpr=L**2*f0
 RR=287.
 RK=rpr*f0/RR
-dim=True
 at=365.25
 ct=(1/(f0*24*3600))/at 
 geo=f0/9.81
@@ -106,10 +105,25 @@ geo=f0/9.81
 # Preparation
 #--------------------------
 
+# Asking for adimensionalization
+
+dim=raw_input('Adimensionalize? (y/N)')
+if dim in ['y','Y']:
+    dim=False
+else:
+    dim=True
+
 # Defining and ordering labels
 #-----------------------------
 
-Zlabel={'at':"Atm. Temperature ($^\circ\!$C)",'ot':'Ocean Temperature ($^\circ\!$C)','dt':'Oc.-Atm. Temperature diff.','ap':r'Geopotential height $\psi_a f_0/g$ (m)','op':r'Ocean $\psi_o$ (m$^2$s$^{-1}$)','p3':r'Atm. low. layer $\psi_a^3$','p1':r'Atm. up. layer $\psi_a^1$','uo':'Ocean U current','vo':'Ocean V current','ua':'Atm. U wind','va':'Atm. V wind','ua3':'Atm. low. U wind','va3':'Atm. low. V wind','ua1':'Atm. up. U wind','va1':'Atm. up. V wind'}
+Zlabel={'at':r"Atm. Temperature $\theta_a$",'ot':r'Ocean Temperature $\theta_o$','dt':'Oc.-Atm. Temperature diff.','ap':r'Atmospheric $\psi_a$','op':r'Ocean $\psi_o$','p3':r'Atm. low. layer $\psi_a^3$','p1':r'Atm. up. layer $\psi_a^1$','uo':'Ocean U current','vo':'Ocean V current','ua':'Atm. U wind','va':'Atm. V wind','ua3':'Atm. low. U wind','va3':'Atm. low. V wind','ua1':'Atm. up. U wind','va1':'Atm. up. V wind'}
+
+strm=r" (m$^2$s$^{-1}$)"
+strg=" (m)"
+strt=r"($^\circ\!$C)"
+strw=r" (ms$^{-1}$)"
+
+Zlabelunit={'at':strt,'ot':strt,'dt':"years",'ap':strg,'op':strm,'p3':strm,'p1':strm,'ua':strw,'va':strw,'uo':strw,'vo':strw,'ua3':strw,'va3':strw,'ua1':strw,'va1':strw}
 
 Zlabelmini={'at':"Atm. T$^\circ$)",'ot':'Oc. T$^\circ$)','dt':'Oc.-Atm. T$^\circ$ diff.','ap':r'Geopot. height','op':r'Oc. $\psi_o$','p3':r'Atm. $\psi_a^3$','p1':r'Atm. $\psi_a^1$','ua':'Atm. U wind','va':'Atm. V wind','uo':'Ocean U current','vo':'Ocean V current','ua3':'Atm. low. U wind','va3':'Atm. low. V wind','ua1':'Atm. up. U wind','va1':'Atm. up. V wind'}
 
@@ -117,13 +131,17 @@ Zlab=[]
 Zlabmini=[]
 for x in Zsel:
     Zlab.append(Zlabel[x])
+    if dim:
+        Zlab[-1]+=Zlabelunit[x]
     Zlabmini.append(Zlabelmini[x])
 
 #Defining some labels to be used later
 sd={'psi':0,'theta':1,'A':2,'T':3,'time':4}
 vl={'psi':r'\psi_{a,','theta':r'\theta_{a,','A':r'\psi_{o,','T':r'\theta_{o,','time':r't'}
-dimd={'psi':rpr*geo,'theta':2*RK,'A':rpr,'T':RK,'time':ct}
-
+if dim:
+    dimd={'psi':rpr*geo,'theta':2*RK,'A':rpr,'T':RK,'time':ct}
+else:
+    dimd={'psi':1,'theta':1,'A':1,'T':1,'time':1}
 
 
 # Utility functions
@@ -162,7 +180,12 @@ def fmt(x, pos):
     else:
         return unicode(r'{}$\times 10^{{{}}}$'.format(a, b))
 
-Zformat={'at':None,'ot':None,'dt':None,'ap':None,'op':ticker.FuncFormatter(fmt),'p3':None,'p1':None,'ua':None,'va':None,'uo':None,'vo':None,'ua3':None,'va3':None,'ua1':None,'va1':None}
+strf=ticker.FuncFormatter(fmt)
+
+if dim:
+    Zformat={'at':None,'ot':None,'dt':None,'ap':None,'op':strf,'p3':strf,'p1':strf,'ua':None,'va':None,'uo':None,'vo':None,'ua3':None,'va3':None,'ua1':None,'va1':None}
+else:
+    Zformat={'at':None,'ot':None,'dt':None,'ap':None,'op':None,'p3':None,'p1':None,'ua':None,'va':None,'uo':None,'vo':None,'ua3':None,'va3':None,'ua1':None,'va1':None}
 
 Zcm={'at':cm.coolwarm,'ot':cm.coolwarm,'dt':cm.coolwarm,'ap':cm.gist_rainbow_r,'op':cm.gist_rainbow_r,'p3':cm.jet,'p1':cm.jet,'ua':cm.hsv_r,'va':cm.hsv_r,'uo':cm.hsv_r,'vo':cm.hsv_r,'ua3':cm.hsv_r,'va3':cm.hsv_r,'ua1':cm.hsv_r,'va1':cm.hsv_r}
 
@@ -509,11 +532,9 @@ for j in range(len(evol)):
     tu=np.array(tu)
     tup=tu.copy()
     tup.shape=1,len(tu)
+    sete.append([np.array(psi)*dimd['psi'],np.array(theta)*dimd['theta'],np.array(aa)*dimd['A'],np.array(tt)*dimd['T'],tup*dimd['time']])
     if dim:
-        sete.append([np.array(psi)*dimd['psi'],np.array(theta)*dimd['theta'],np.array(aa)*dimd['A'],np.array(tt)*dimd['T'],tup*dimd['time']])
         tu=tu*ct
-    else:
-        sete.append([np.array(psi),np.array(theta),np.array(aa),np.array(tt),tup])
 
 ival=1
 tl=[]
@@ -823,7 +844,10 @@ x=sete[0]
 for i in range(sti,ste,ite):
     if np.mod(i-sti,100*ite)==0:
         print 'Generating the fields in the frame ',i,'('+str((i-sti)/ite)+')'
-        print 'At time t=',x[4][0,i],'years'
+        if dim:
+            print 'At time t=',x[4][0,i],'years'
+        else:
+            print 'At time t=',x[4][0,i],'timeunits'
     if 'op' in Zsel:
         Z[Zsel.index('op')].append(ostream_cons(X,Y,x[2][:,i]))
     if 'ot' in Zsel:
@@ -902,9 +926,14 @@ if smin>0.:
     ax1.set_ylim(0.9*smin,1.1*smax)
 else:
     ax1.set_ylim(1.1*smin,1.1*smax)
-ax1.set_xlabel('time (years)')
+if dim:
+    ax1.set_xlabel('time (years)')
+else:
+    ax1.set_xlabel('time (timeunits)')
 
-difflab=Zlabmini+['Geopot. H. (m)']
+difflab=Zlabmini+['Geopot. H.']
+if dim:
+    difflab[-1]+=' (m)'
 
 #------------------------------
 # Initialization of the animation
@@ -919,7 +948,7 @@ for i in range(lx):
 for i in [4]:
     xrlines[i],=ax1.plot([],[],label=difflab[i])
 
-# ax1.legend()
+ax1.legend()
 
 # Attractor plot
 
