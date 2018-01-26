@@ -77,7 +77,7 @@ import subprocess
 #                     - va3: atmospheric lower V wind component
 
 
-Zsel=['ap','at','p3','p1']
+Zsel=['ap','ua','op','uo']
 
 # Mailserver configuration
 #--------------------------
@@ -139,9 +139,9 @@ for x in Zsel:
 sd={'psi':0,'theta':1,'A':2,'T':3,'time':4}
 vl={'psi':r'\psi_{a,','theta':r'\theta_{a,','A':r'\psi_{o,','T':r'\theta_{o,','time':r't'}
 if dim:
-    dimd={'psi':rpr*geo,'theta':2*RK,'A':rpr,'T':RK,'time':ct}
+    dimd={'psi':rpr*geo,'theta':2*RK,'A':rpr,'T':RK,'time':ct,'length':L}
 else:
-    dimd={'psi':1,'theta':1,'A':1,'T':1,'time':1}
+    dimd={'psi':1,'theta':1,'A':1,'T':1,'time':1,'length':1}
 
 
 # Utility functions
@@ -300,13 +300,13 @@ def dxphi(i,x,y): # in x
     w=oftable[i]
     Nx=w['Nx']
     Ny=w['Ny']
-    return 2*nr*Nx*np.cos(nr*Nx*x)*np.sin(Ny*y)/L #2*np.exp(-al*x)*np.sin(nr*Nx*x)*np.sin(Ny*y)
+    return 2*nr*Nx*np.cos(nr*Nx*x)*np.sin(Ny*y) #2*np.exp(-al*x)*np.sin(nr*Nx*x)*np.sin(Ny*y)
 
 def dyphi(i,x,y):
     w=oftable[i]
     Nx=w['Nx']
     Ny=w['Ny']
-    return 2*Ny*np.sin(nr*Nx*x)*np.cos(Ny*y)/L #2*np.exp(-al*x)*np.sin(nr*Nx*x)*np.sin(Ny*y)
+    return 2*Ny*np.sin(nr*Nx*x)*np.cos(Ny*y) #2*np.exp(-al*x)*np.sin(nr*Nx*x)*np.sin(Ny*y)
 
 # Function returning the fields based on the coefficients
 # ---------------------------------------------------------
@@ -411,8 +411,8 @@ x2=f.readline()
 
 f.close()
 
-x1=ct*float(x1.split()[0])
-x2=ct*float(x2.split()[0])
+x1=dimd['time']*float(x1.split()[0])
+x2=dimd['time']*float(x2.split()[0])
 
 # Asking the user from which line to which line he want to read
 # providing a gross (experimental) estimation of what it will take in the memory
@@ -533,8 +533,7 @@ for j in range(len(evol)):
     tup=tu.copy()
     tup.shape=1,len(tu)
     sete.append([np.array(psi)*dimd['psi'],np.array(theta)*dimd['theta'],np.array(aa)*dimd['A'],np.array(tt)*dimd['T'],tup*dimd['time']])
-    if dim:
-        tu=tu*ct
+    tu=tu*dimd['time']
 
 ival=1
 tl=[]
@@ -858,32 +857,34 @@ for i in range(sti,ste,ite):
         Z[Zsel.index('ap')].append(astream(X,Y,x[0][:,i]))
 
     if 'uo' in Zsel or 'vo' in Zsel:
-        U,V=ovec(X,Y,x[2][:,i])
+        U,V=ovec(X,Y,x[2][:,i]/dimd['length'])
         if 'uo' in Zsel:
             Z[Zsel.index('uo')].append(U)
         if 'vo' in Zsel:
             Z[Zsel.index('vo')].append(V)
 
     if 'ua' in Zsel or 'va' in Zsel:
-        U,V=avec(X,Y,x[0][:,i]*(dimd['A']/dimd['psi']))
+        U,V=avec(X,Y,x[0][:,i]*(dimd['A']/(dimd['psi']*dimd['length'])))
         if 'ua' in Zsel:
             Z[Zsel.index('ua')].append(U)
         if 'va' in Zsel:
             Z[Zsel.index('va')].append(V)
 
     if 'ua1' in Zsel or 'va1' in Zsel:
-        U,V=avec(X,Y,x[0][:,i]*(dimd['A']/dimd['psi']))+avec(X,Y,x[1][:,i]*(dimd['A']/dimd['theta']))
+        U,V=avec(X,Y,x[0][:,i]*(dimd['A']/(dimd['psi']*dimd['length'])))
+        U1,V1=avec(X,Y,x[1][:,i]*(dimd['A']/(dimd['theta']*dimd['length'])))
         if 'ua1' in Zsel:
-            Z[Zsel.index('ua1')].append(U)
+            Z[Zsel.index('ua1')].append(U+U1)
         if 'va1' in Zsel:
-            Z[Zsel.index('va1')].append(V)
+            Z[Zsel.index('va1')].append(V+V1)
 
     if 'ua3' in Zsel or 'va3' in Zsel:
-        U,V=avec(X,Y,x[0][:,i]*(dimd['A']/dimd['psi']))-avec(X,Y,x[1][:,i]*(dimd['A']/dimd['theta']))
+        U,V=avec(X,Y,x[0][:,i]*(dimd['A']/(dimd['psi']*dimd['length'])))
+        U1,V1=avec(X,Y,x[1][:,i]*(dimd['A']/(dimd['theta']*dimd['length'])))
         if 'ua3' in Zsel:
-            Z[Zsel.index('ua3')].append(U)
+            Z[Zsel.index('ua3')].append(U-U1)
         if 'va3' in Zsel:
-            Z[Zsel.index('va3')].append(V)
+            Z[Zsel.index('va3')].append(V-V1)
 
 
     if 'p3' in Zsel:
