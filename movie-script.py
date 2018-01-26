@@ -47,11 +47,11 @@ import subprocess
 #-----------------------------------
 
 # ----------------------------------
-# |  diff   |   1      |      3    |
+# |  info   |   1      |      3    |
 # ----------------------------------
 # |  3D     |   2      |      4    |
 # ----------------------------------
-# diff : time series of the difference of quantities
+# info : information view
 # 3D   : 3D phase space projection
 # 1--4 : spatial fields representations
 
@@ -64,8 +64,10 @@ import subprocess
 #                     - ap : atmospheric pressure at 500 mb
 #                     - ot : oceanic temperature
 #                     - op : oceanic streamfunction
-#                     - p3 : oceanic lower layer streamfunction
-#                     - p1 : oceanic upper layer streamfunction
+#                     - p3 : atmospheric lower layer streamfunction psi^3
+#                     - p1 : atmospheric upper layer streamfunction psi^1
+#                     - ap3 : atmospheric pressure at 750 mb
+#                     - ap1 : atmospheric pressure at 250 mb
 #                     - dt : ocean-atmosphere temperature difference
 #                     - ua : atmospheric U wind component at 500 mb
 #                     - va : atmospheric V wind component at 500 mb
@@ -77,7 +79,28 @@ import subprocess
 #                     - va3: atmospheric lower V wind component
 
 
-Zsel=['ap','ua','ua1','ua3']
+Zsel=['at','ap','ap1','ap3']
+
+# Selection of the infoview mode:
+#---------------------------------
+
+Isel="diff"
+
+#Isel can be : - diff : Difference plot of various quantities (i.e. atm. geopot. height diff.)
+#              - yprof : Profile of various quantities along the spatial direction y
+#              - xprof : Profile of various quantities along the spatial direction x
+#              - omode : Instaneous spectral oceanic mode contents
+#              - amode : Instaneous spectral atmospheric mode contents
+
+IIsel=['geo','sp2','sp3','sp4']
+
+# IIsel : List holding the content to be shown in the infoview
+#
+# Available content:
+#     For the "diff" mode:
+#               - geo : Time evolution of the North-South geopotential height difference at 500mb 
+#               - sp(n): Difference between n-th displayed spatial field maximum and minimum
+
 
 # Mailserver configuration
 #--------------------------
@@ -116,16 +139,16 @@ else:
 # Defining and ordering labels
 #-----------------------------
 
-Zlabel={'at':r"Atm. Temperature $\theta_a$",'ot':r'Ocean Temperature $\theta_o$','dt':'Oc.-Atm. Temperature diff.','ap':r'Atmospheric $\psi_a$','op':r'Ocean $\psi_o$','p3':r'Atm. low. layer $\psi_a^3$','p1':r'Atm. up. layer $\psi_a^1$','uo':'Ocean U current','vo':'Ocean V current','ua':'Atm. 500mb U wind','va':'Atm. 500mb V wind','ua3':'Atm. 750mb U wind','va3':'Atm. 750mb V wind','ua1':'Atm. 250mb U wind','va1':'Atm. 250mb V wind'}
+Zlabel={'at':r"Atm. Temperature $\theta_a$",'ot':r'Ocean Temperature $\theta_o$','dt':'Oc.-Atm. Temperature diff.','ap':r'Atmospheric $\psi_a$','op':r'Ocean $\psi_o$','p3':r'Atm. low. layer $\psi_a^3$','p1':r'Atm. up. layer $\psi_a^1$','uo':'Ocean U current','vo':'Ocean V current','ua':'Atm. 500mb U wind','va':'Atm. 500mb V wind','ua3':'Atm. 750mb U wind','va3':'Atm. 750mb V wind','ua1':'Atm. 250mb U wind','va1':'Atm. 250mb V wind','ap3':r'Atm. low. layer $\psi_a^3$','ap1':r'Atm. up. layer $\psi_a^1$'}
 
 strm=r" (m$^2$s$^{-1}$)"
 strg=" (m)"
 strt=r"($^\circ\!$C)"
 strw=r" (ms$^{-1}$)"
 
-Zlabelunit={'at':strt,'ot':strt,'dt':"years",'ap':strg,'op':strm,'p3':strm,'p1':strm,'ua':strw,'va':strw,'uo':strw,'vo':strw,'ua3':strw,'va3':strw,'ua1':strw,'va1':strw}
+Zlabelunit={'at':strt,'ot':strt,'dt':"years",'ap':strg,'op':strm,'p3':strm,'p1':strm,'ua':strw,'va':strw,'uo':strw,'vo':strw,'ua3':strw,'va3':strw,'ua1':strw,'va1':strw,'ap3':strg,'ap1':strg}
 
-Zlabelmini={'at':"Atm. T$^\circ$)",'ot':'Oc. T$^\circ$)','dt':'Oc.-Atm. T$^\circ$ diff.','ap':r'Geopot. height','op':r'Oc. $\psi_o$','p3':r'Atm. $\psi_a^3$','p1':r'Atm. $\psi_a^1$','ua':'Atm. U wind','va':'Atm. V wind','uo':'Ocean U current','vo':'Ocean V current','ua3':'Atm. low. U wind','va3':'Atm. low. V wind','ua1':'Atm. up. U wind','va1':'Atm. up. V wind'}
+Zlabelmini={'at':"Atm. T$^\circ$)",'ot':'Oc. T$^\circ$)','dt':'Oc.-Atm. T$^\circ$ diff.','ap':r'Atm. $\psi_a$','op':r'Oc. $\psi_o$','p3':r'Atm. $\psi_a^3$','p1':r'Atm. $\psi_a^1$','ua':'Atm. U wind','va':'Atm. V wind','uo':'Ocean U current','vo':'Ocean V current','ua3':'Atm. low. U wind','va3':'Atm. low. V wind','ua1':'Atm. up. U wind','va1':'Atm. up. V wind','ap3':r'Atm. $\psi_a^3$','ap1':r'Atm. $\psi_a^1$'}
 
 Zlab=[]
 Zlabmini=[]
@@ -147,6 +170,10 @@ else:
 
 # Defining the dico of the variables dimensionalization    
 dimdv={'psi':dimd['strfunc']*dimd['geo'],'theta':2*dimd['temp'],'A':dimd['strfunc'],'T':dimd['temp'],'time':dimd['timey']}
+
+# Infoview labels
+
+Ivtit={'diff':"Differences plot"}
 
 
 # Utility functions
@@ -188,11 +215,11 @@ def fmt(x, pos):
 strf=ticker.FuncFormatter(fmt)
 
 if dim:
-    Zformat={'at':None,'ot':None,'dt':None,'ap':None,'op':strf,'p3':strf,'p1':strf,'ua':None,'va':None,'uo':None,'vo':None,'ua3':None,'va3':None,'ua1':None,'va1':None}
+    Zformat={'at':None,'ot':None,'dt':None,'ap':None,'op':strf,'p3':strf,'p1':strf,'ua':None,'va':None,'uo':None,'vo':None,'ua3':None,'va3':None,'ua1':None,'va1':None,'ap3':None,'ap1':None}
 else:
-    Zformat={'at':None,'ot':None,'dt':None,'ap':None,'op':None,'p3':None,'p1':None,'ua':None,'va':None,'uo':None,'vo':None,'ua3':None,'va3':None,'ua1':None,'va1':None}
+    Zformat={'at':None,'ot':None,'dt':None,'ap':None,'op':None,'p3':None,'p1':None,'ua':None,'va':None,'uo':None,'vo':None,'ua3':None,'va3':None,'ua1':None,'va1':None,'ap3':None,'ap1':None}
 
-Zcm={'at':cm.coolwarm,'ot':cm.coolwarm,'dt':cm.coolwarm,'ap':cm.gist_rainbow_r,'op':cm.gist_rainbow_r,'p3':cm.jet,'p1':cm.jet,'ua':cm.hsv_r,'va':cm.hsv_r,'uo':cm.hsv_r,'vo':cm.hsv_r,'ua3':cm.hsv_r,'va3':cm.hsv_r,'ua1':cm.hsv_r,'va1':cm.hsv_r}
+Zcm={'at':cm.coolwarm,'ot':cm.coolwarm,'dt':cm.coolwarm,'ap':cm.gist_rainbow_r,'op':cm.gist_rainbow_r,'p3':cm.jet,'p1':cm.jet,'ua':cm.hsv_r,'va':cm.hsv_r,'uo':cm.hsv_r,'vo':cm.hsv_r,'ua3':cm.hsv_r,'va3':cm.hsv_r,'ua1':cm.hsv_r,'va1':cm.hsv_r,'ap3':cm.jet,'ap1':cm.jet}
 
 
 # Loading the geometries given as arguments or by the users
@@ -572,7 +599,7 @@ ax6=fig.add_subplot(2,3,6)
 
 # Views title
 
-ax1.set_title("Differences plot")
+ax1.set_title(Ivtit[Isel])
 ax2.set_title('3-D phase space projection')
 ax2.text2D(0.5, 0.9,'(Non-dimensional units)', horizontalalignment='center',verticalalignment='center',transform=ax2.transAxes,fontdict={'size':12})
 ax3.set_title(Zlab[1])
@@ -898,6 +925,11 @@ for i in range(sti,ste,ite):
     if 'dt' in Zsel:
         Z[Zsel.index('dt')].append(ostream(X,Y,x[3][:,i])-astream(X,Y,x[1][:,i]))
 
+    if 'ap1' in Zsel:
+        Z[Zsel.index('ap1')].append(astream(X,Y,x[0][:,i])+astream(X,Y,x[1][:,i]*(dimdv['psi']/dimdv['theta'])))
+    if 'ap3' in Zsel:
+        Z[Zsel.index('ap3')].append(astream(X,Y,x[0][:,i])-astream(X,Y,x[1][:,i]*(dimdv['psi']/dimdv['theta'])))
+
     geoap.append(geodiff(x[0][:,i]))
 
     for j in range(4):
@@ -912,33 +944,41 @@ ZM=np.array(ZM)
 Zm=np.array(Zm)
 geoap=np.array(geoap)
 
-diff=[]
-for i in range(4):
-    diff.append(ZM[i]-Zm[i])
-diff.append(geoap)
+if Isel=="diff":
+    diff=[]
+    difflab=[]
+    for x in IIsel:
+        if 'sp' in x:
+            i=int(x[2])-1
+            diff.append(ZM[i]-Zm[i])
+            difflab.append(Zlabmini[i])
+            if dim:
+                difflab[-1]+=Zlabelunit[Zsel[i]]
+        if x=='geo':
+            diff.append(geoap)
+            difflab.append('Geop. H.')
+            if dim:
+                difflab[-1]+=strg
 
 
-smax=np.amax(diff[4])
-smin=np.amin(diff[4])
+    smax=max(map(np.amax,diff))
+    smin=min(map(np.amin,diff))
 
 #------------------------------------------
 # Last figures setup
 #------------------------------------------
 
 # Setting the limit of the view showing the differences
-ax1.set_xlim(0.,sete[0][4][0,ste-1]-sete[0][4][0,sti])
-if smin>0.:
-    ax1.set_ylim(0.9*smin,1.1*smax)
-else:
-    ax1.set_ylim(1.1*smin,1.1*smax)
-if dim:
-    ax1.set_xlabel('time (years)')
-else:
-    ax1.set_xlabel('time (timeunits)')
-
-difflab=Zlabmini+['Geopot. H.']
-if dim:
-    difflab[-1]+=' (m)'
+if Isel=="diff":
+    ax1.set_xlim(0.,sete[0][4][0,ste-1]-sete[0][4][0,sti])
+    if smin>0.:
+        ax1.set_ylim(0.9*smin,1.1*smax)
+    else:
+        ax1.set_ylim(1.1*smin,1.1*smax)
+    if dim:
+        ax1.set_xlabel('time (years)')
+    else:
+        ax1.set_xlabel('time (timeunits)')
 
 #------------------------------
 # Initialization of the animation
@@ -946,14 +986,14 @@ if dim:
 
 # Difference plot
 
-lx=5
-xrlines=[]
-for i in range(lx):
-    xrlines.append(None)
-for i in [4]:
-    xrlines[i],=ax1.plot([],[],label=difflab[i])
+if Isel=="diff":
+    xrlines=[]
+    for i in range(len(diff)):
+        xrlines.append(None)
+    for i in range(len(diff)):
+        xrlines[i],=ax1.plot([],[],label=difflab[i])
 
-ax1.legend()
+    ax1.legend(fontsize=12)
 
 # Attractor plot
 
@@ -1015,7 +1055,7 @@ def animate(i):
     xpoint.set_3d_properties(x[sd[showp3[0]]][n3[0],l:l+1])
     
     # Update of the difference plot
-    for j in [4]:
+    for j in range(len(diff)):
         xrlines[j].set_xdata(x[4][0,:l+1:ival])
         xrlines[j].set_ydata(diff[j][:l+1:ival])
 
