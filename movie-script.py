@@ -77,7 +77,7 @@ import subprocess
 #                     - va3: atmospheric lower V wind component
 
 
-Zsel=['ap','ua','op','uo']
+Zsel=['ap','ua','ua1','ua3']
 
 # Mailserver configuration
 #--------------------------
@@ -116,7 +116,7 @@ else:
 # Defining and ordering labels
 #-----------------------------
 
-Zlabel={'at':r"Atm. Temperature $\theta_a$",'ot':r'Ocean Temperature $\theta_o$','dt':'Oc.-Atm. Temperature diff.','ap':r'Atmospheric $\psi_a$','op':r'Ocean $\psi_o$','p3':r'Atm. low. layer $\psi_a^3$','p1':r'Atm. up. layer $\psi_a^1$','uo':'Ocean U current','vo':'Ocean V current','ua':'Atm. U wind','va':'Atm. V wind','ua3':'Atm. low. U wind','va3':'Atm. low. V wind','ua1':'Atm. up. U wind','va1':'Atm. up. V wind'}
+Zlabel={'at':r"Atm. Temperature $\theta_a$",'ot':r'Ocean Temperature $\theta_o$','dt':'Oc.-Atm. Temperature diff.','ap':r'Atmospheric $\psi_a$','op':r'Ocean $\psi_o$','p3':r'Atm. low. layer $\psi_a^3$','p1':r'Atm. up. layer $\psi_a^1$','uo':'Ocean U current','vo':'Ocean V current','ua':'Atm. 500mb U wind','va':'Atm. 500mb V wind','ua3':'Atm. 750mb U wind','va3':'Atm. 750mb V wind','ua1':'Atm. 250mb U wind','va1':'Atm. 250mb V wind'}
 
 strm=r" (m$^2$s$^{-1}$)"
 strg=" (m)"
@@ -138,10 +138,15 @@ for x in Zsel:
 #Defining some labels to be used later
 sd={'psi':0,'theta':1,'A':2,'T':3,'time':4}
 vl={'psi':r'\psi_{a,','theta':r'\theta_{a,','A':r'\psi_{o,','T':r'\theta_{o,','time':r't'}
+
+# Defining the dico of the dimensionalization
 if dim:
-    dimd={'psi':rpr*geo,'theta':2*RK,'A':rpr,'T':RK,'time':ct,'length':L}
+    dimd={'geo':geo,'strfunc':rpr,'temp':RK,'timey':ct,'times':1/f0,'length':L}
 else:
-    dimd={'psi':1,'theta':1,'A':1,'T':1,'time':1,'length':1}
+    dimd={'geo':1,'strfunc':1,'temp':1,'timey':1,'times':1,'length':1}
+
+# Defining the dico of the variables dimensionalization    
+dimdv={'psi':dimd['strfunc']*dimd['geo'],'theta':2*dimd['temp'],'A':dimd['strfunc'],'T':dimd['temp'],'time':dimd['timey']}
 
 
 # Utility functions
@@ -411,8 +416,8 @@ x2=f.readline()
 
 f.close()
 
-x1=dimd['time']*float(x1.split()[0])
-x2=dimd['time']*float(x2.split()[0])
+x1=dimd['timey']*float(x1.split()[0])
+x2=dimd['timey']*float(x2.split()[0])
 
 # Asking the user from which line to which line he want to read
 # providing a gross (experimental) estimation of what it will take in the memory
@@ -532,8 +537,8 @@ for j in range(len(evol)):
     tu=np.array(tu)
     tup=tu.copy()
     tup.shape=1,len(tu)
-    sete.append([np.array(psi)*dimd['psi'],np.array(theta)*dimd['theta'],np.array(aa)*dimd['A'],np.array(tt)*dimd['T'],tup*dimd['time']])
-    tu=tu*dimd['time']
+    sete.append([np.array(psi)*dimdv['psi'],np.array(theta)*dimdv['theta'],np.array(aa)*dimdv['A'],np.array(tt)*dimdv['T'],tup*dimdv['time']])
+    tu=tu*dimdv['time']
 
 ival=1
 tl=[]
@@ -621,7 +626,7 @@ for x in labels:
     if x:
         jk+=1
         y=float(x.replace(u'\u2212',u'-'))
-        y=y/dimd[showp[0]]
+        y=y/dimdv[showp[0]]
         if jk==1:
             n=order(y)
         if abs(n)>2:
@@ -660,7 +665,7 @@ for x in labels:
     if x:
         jk+=1
         y=float(x.replace(u'\u2212',u'-'))
-        y=y/dimd[showp2[0]]
+        y=y/dimdv[showp2[0]]
         if jk==1:
             n=order(y)
         if abs(n)>2:
@@ -696,7 +701,7 @@ for x in labels:
     if x:
         jk+=1
         y=float(x.replace(u'\u2212',u'-'))
-        y=y/dimd[showp3[0]]
+        y=y/dimdv[showp3[0]]
         if jk==1:
             n=order(y)
         if abs(n)>2:
@@ -864,33 +869,32 @@ for i in range(sti,ste,ite):
             Z[Zsel.index('vo')].append(V)
 
     if 'ua' in Zsel or 'va' in Zsel:
-        U,V=avec(X,Y,x[0][:,i]*(dimd['A']/(dimd['psi']*dimd['length'])))
+        U,V=avec(X,Y,x[0][:,i]*(dimd['strfunc']/(dimdv['psi']*dimd['length'])))
         if 'ua' in Zsel:
             Z[Zsel.index('ua')].append(U)
         if 'va' in Zsel:
             Z[Zsel.index('va')].append(V)
 
     if 'ua1' in Zsel or 'va1' in Zsel:
-        U,V=avec(X,Y,x[0][:,i]*(dimd['A']/(dimd['psi']*dimd['length'])))
-        U1,V1=avec(X,Y,x[1][:,i]*(dimd['A']/(dimd['theta']*dimd['length'])))
+        U,V=avec(X,Y,x[0][:,i]*(dimd['strfunc']/(dimdv['psi']*dimd['length'])))
+        U1,V1=avec(X,Y,x[1][:,i]*(dimd['strfunc']/(dimdv['theta']*dimd['length'])))
         if 'ua1' in Zsel:
             Z[Zsel.index('ua1')].append(U+U1)
         if 'va1' in Zsel:
             Z[Zsel.index('va1')].append(V+V1)
 
     if 'ua3' in Zsel or 'va3' in Zsel:
-        U,V=avec(X,Y,x[0][:,i]*(dimd['A']/(dimd['psi']*dimd['length'])))
-        U1,V1=avec(X,Y,x[1][:,i]*(dimd['A']/(dimd['theta']*dimd['length'])))
+        U,V=avec(X,Y,x[0][:,i]*(dimd['strfunc']/(dimdv['psi']*dimd['length'])))
+        U1,V1=avec(X,Y,x[1][:,i]*(dimd['strfunc']/(dimdv['theta']*dimd['length'])))
         if 'ua3' in Zsel:
             Z[Zsel.index('ua3')].append(U-U1)
         if 'va3' in Zsel:
             Z[Zsel.index('va3')].append(V-V1)
 
-
-    if 'p3' in Zsel:
-        Z[Zsel.index('p3')].append(astream(X,Y,x[0][:,i]*(dimd['A']/dimd['psi']))-astream(X,Y,x[1][:,i]*(dimd['A']/dimd['theta'])))
     if 'p1' in Zsel:
-        Z[Zsel.index('p1')].append(astream(X,Y,x[0][:,i]*(dimd['A']/dimd['psi']))+astream(X,Y,x[1][:,i]*(dimd['A']/dimd['theta'])))
+        Z[Zsel.index('p1')].append(astream(X,Y,x[0][:,i]*(dimd['strfunc']/dimdv['psi']))+astream(X,Y,x[1][:,i]*(dimd['strfunc']/dimdv['theta'])))
+    if 'p3' in Zsel:
+        Z[Zsel.index('p3')].append(astream(X,Y,x[0][:,i]*(dimd['strfunc']/dimdv['psi']))-astream(X,Y,x[1][:,i]*(dimd['strfunc']/dimdv['theta'])))
     if 'dt' in Zsel:
         Z[Zsel.index('dt')].append(ostream(X,Y,x[3][:,i])-astream(X,Y,x[1][:,i]))
 
