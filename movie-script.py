@@ -47,9 +47,9 @@ import subprocess
 #-----------------------------------
 
 # ----------------------------------
-# |  info   |   1      |      3    |
+# |  info   |   2      |      4    |
 # ----------------------------------
-# |  3D     |   2      |      4    |
+# |  3D     |   1      |      3    |
 # ----------------------------------
 # info : information view
 # 3D   : 3D phase space projection
@@ -79,19 +79,19 @@ import subprocess
 #                     - va3: atmospheric lower V wind component
 
 
-Zsel=['at','ap','ua','va']
+Zsel=['ap','ap3','ua','ua3']
 
 # Selection of the infoview mode:
 #---------------------------------
 
-Isel="xprof"
+Isel="yprof"
 
 #Isel can be : - diff : Difference plot of various quantities (i.e. atm. geopot. height diff.)
 #              - yprof : Profile of various quantities along the spatial direction y
 #              - xprof : Profile of various quantities along the spatial direction x
 #              - mode : Instaneous spectral modes contents
 
-IIsel=['sp3','spa3']
+IIsel=['spa3','spa4']
 
 # IIsel : List holding the content to be shown in the infoview
 #
@@ -109,6 +109,11 @@ IIsel=['sp3','spa3']
 #                         and at the middle of domain
 #               - spa(n): Profile of the (n)-th displayed spatial field in the x spatial direction
 #                         and averaged in the y direction
+#     For the "mode" mode, only one of the following:
+#               - op: Ocean streamfunction modes
+#               - ot: Ocean temperature modes
+#               - ap: Atmosphere streamfunction modes
+#               - at: Atmosphere temperature modes
 
 
 # Mailserver configuration
@@ -582,211 +587,6 @@ for i in range(len(sete)):
     tl.append(len(sete[i][0][0]))
 
 
-#--------------------------------------
-# Setup of the plots
-#--------------------------------------
-
-fig=plt.figure(num=10,figsize=(16,9))
-
-# General title
-
-fig.suptitle('Spatial fields in the model MAOOAM')
-
-# General subtitle
-
-suptit=r'atmosphere $'+ageom.replace('x','x$-$')+r'y$  ocean $'+ogeom.replace('x','x$-$')+r'y$'
-fig.text(0.42,0.92,'Resolution : '+suptit)
-
-# Setting the six views
-
-ax1=fig.add_subplot(2,3,1)
-ax2=fig.add_subplot(2,3,4,projection='3d')
-ax3=fig.add_subplot(2,3,2)
-ax4=fig.add_subplot(2,3,3)
-ax5=fig.add_subplot(2,3,5)
-ax6=fig.add_subplot(2,3,6)
-
-# Views title
-
-ax1.set_title(Ivtit[Isel])
-ax2.set_title('3-D phase space projection')
-ax2.text2D(0.5, 0.9,'(Non-dimensional units)', horizontalalignment='center',verticalalignment='center',transform=ax2.transAxes,fontdict={'size':12})
-ax3.set_title(Zlab[1])
-ax4.set_title(Zlab[3]) 
-ax5.set_title(Zlab[0])
-ax6.set_title(Zlab[2])
-
-# 3D view axis ranges and labels
-#----------------------------------
-
-# Range
-#ax.view_init(20,24)
-mv=0.25 # Overflow factor
-smax=3*[-30000.]
-x=sete[0]
-smax[0]=max(smax[0],np.amax(x[sd[showp[0]]][n1[0],:]))
-smax[1]=max(smax[1],np.amax(x[sd[showp2[0]]][n2[0],:]))
-smax[2]=max(smax[2],np.amax(x[sd[showp3[0]]][n3[0],:]))
-smin=smax[:]
-smin[0]=min(smin[0],np.amin(x[sd[showp[0]]][n1[0],:]))
-smin[1]=min(smin[1],np.amin(x[sd[showp2[0]]][n2[0],:]))
-smin[2]=min(smin[2],np.amin(x[sd[showp3[0]]][n3[0],:]))
-dmm=[]
-for i in range(3):
-    dmm.append(smax[i]-smin[i])
-
-# Rescaling
-smax[0]=smax[0]+dmm[0]*mv
-smax[1]=smax[1]+dmm[1]*mv
-smax[2]=smax[2]+dmm[2]*mv
-smin[0]=smin[0]-dmm[0]*mv
-smin[1]=smin[1]-dmm[1]*mv
-smin[2]=smin[2]-dmm[2]*mv
-
-# Setting the limits
-ax2.set_xlim(smin[0],smax[0])
-ax2.set_ylim(smin[1],smax[1])
-ax2.set_zlim(smin[2],smax[2])
-fig.canvas.draw()
-
-# Setting the ticks and the labels on the 3D view
-
-# x ticks and axis label
-
-labels = [item.get_text() for item in ax2.get_xticklabels()]
-ii=len(labels)-1
-labto=[]
-#	print labels
-jk=0
-for x in labels:
-    if x:
-        jk+=1
-        y=float(x.replace(u'\u2212',u'-'))
-        y=y/dimdv[showp[0]]
-        if jk==1:
-            n=order(y)
-        if abs(n)>2:
-            y=y*10**(-n)
-            y=round(y,2)
-            # labto.append(unicode(y).replace(u'-',u'\u2212')+u'e'+unicode(n).replace(u'-',u'\u2212'))
-            labto.append(unicode(y).replace(u'-',u'\u2212')+unicode(r'$\times 10^{'+str(n)+r'}$'))
-	else:
-            y=round(y,2)
-            labto.append(unicode(y).replace(u'-',u'\u2212'))
-    else:
-        ii-=1
-        labto.append(x)
-ax2.set_xticklabels(labto)
-til1=ax2.xaxis.get_major_ticks()
-for j in range(0,len(til1),1):
-    til1[j].label1.set_visible(False)
-til1[ii].label1.set_visible(True)
-til1[0].label1.set_visible(True)
-
-if showp[0]=='time':
-    ax2.set_xlabel('\n\n'+r'$'+vl[showp[0]]+r'$',fontdict={'size':18})
-else:
-#    if abs(n)>2:
-#        ax2.set_xlabel('\n\n'+r'$'+vl[showp[0]]+str(n1[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})
-#    else:
-    ax2.set_xlabel('\n\n\n'+r'$'+vl[showp[0]]+str(n1[0]+1)+r'}$',fontdict={'size':18})
-
-# y ticks and axis label
-
-labels = [item.get_text() for item in ax2.get_yticklabels()]
-ii=len(labels)-1
-labto=[]
-jk=0
-for x in labels:
-    if x:
-        jk+=1
-        y=float(x.replace(u'\u2212',u'-'))
-        y=y/dimdv[showp2[0]]
-        if jk==1:
-            n=order(y)
-        if abs(n)>2:
-            y=y*10**(-n)
-            y=round(y,2)
-            # labto.append(unicode(y).replace(u'-',u'\u2212')+u'e'+unicode(n).replace(u'-',u'\u2212'))
-            labto.append(unicode(y).replace(u'-',u'\u2212')+unicode(r'$\times 10^{'+str(n)+r'}$'))
-	else:
-            y=round(y,2)
-            labto.append(unicode(y).replace(u'-',u'\u2212'))
-    else:
-        ii-=1
-        labto.append(x)
-ax2.set_yticklabels(labto)
-til2=ax2.yaxis.get_major_ticks()
-for j in range(0,len(til2),1):
-    til2[j].label1.set_visible(False)
-til2[ii].label1.set_visible(True)
-til2[0].label1.set_visible(True)
-
-#if abs(n)>2:
-#    ax2.set_ylabel('\n\n'+r'$'+vl[showp2[0]]+str(n2[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})
-#else:
-ax2.set_ylabel('\n\n'+r'$'+vl[showp2[0]]+str(n2[0]+1)+r'}$',fontdict={'size':18})
-
-# z ticks
-
-labels = [item.get_text() for item in ax2.get_zticklabels()]
-ii=len(labels)-1
-labto=[]
-jk=0
-for x in labels:
-    if x:
-        jk+=1
-        y=float(x.replace(u'\u2212',u'-'))
-        y=y/dimdv[showp3[0]]
-        if jk==1:
-            n=order(y)
-        if abs(n)>2:
-            y=y*10**(-n)
-            y=round(y,2)
-            # labto.append(unicode(y).replace(u'-',u'\u2212')+u'e'+unicode(n).replace(u'-',u'\u2212'))
-            labto.append(unicode(y).replace(u'-',u'\u2212')+unicode(r'$\times 10^{'+str(n)+r'}$'))
-	else:
-            y=round(y,2)
-            labto.append(unicode(y).replace(u'-',u'\u2212'))
-    else:
-        ii-=1
-        labto.append(x)
-ax2.set_zticklabels(labto)
-til3=ax2.zaxis.get_major_ticks()
-for j in range(0,len(til3),1):
-    til3[j].label1.set_visible(False)
-til3[ii-1].label1.set_visible(True)
-til3[0].label1.set_visible(True)
-
-#if abs(n)>2:
-#    ax2.set_zlabel(''+r'$'+vl[showp3[0]]+str(n3[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})    
-#else:
-ax2.set_zlabel(''+r'$'+vl[showp3[0]]+str(n3[0]+1)+r'}$',fontdict={'size':18})
-
-
-# ticks alignement
-
-[t.set_va('center') for t in ax2.get_yticklabels()]
-[t.set_ha('left') for t in ax2.get_yticklabels()]
-[t.set_va('center') for t in ax2.get_xticklabels()]
-[t.set_ha('right') for t in ax2.get_xticklabels()]
-[t.set_va('center') for t in ax2.get_zticklabels()]
-[t.set_ha('left') for t in ax2.get_zticklabels()]
-
-# Other views labels
-#--------------------
-
-ax3.set_xlabel('$x^\prime$')
-ax3.set_ylabel('$y^\prime$')
-
-ax4.set_xlabel('$x^\prime$')
-ax4.set_ylabel('$y^\prime$')
-
-ax5.set_xlabel('$x^\prime$')
-ax5.set_ylabel('$y^\prime$')
-
-ax6.set_xlabel('$x^\prime$')
-ax6.set_ylabel('$y^\prime$')
 
 # Sending a mail to alert that the first stage is completed (loading the data
 # and preparing the plots)
@@ -1022,8 +822,8 @@ if Isel=="diff":
             if dim:
                 difflab[-1]+=strg
 
-    smax=max(map(np.amax,diff))
-    smin=min(map(np.amin,diff))
+    ifsmax=max(map(np.amax,diff))
+    ifsmin=min(map(np.amin,diff))
 if Isel=="yprof":
     prof=[]
     profave=[]
@@ -1043,13 +843,13 @@ if Isel=="yprof":
             proflab.append(Zlabmini[i])
             if dim:
                 proflab[-1]+=Zlabelunit[Zsel[i]]
-    smax=[]
-    smin=[]
+    ifsmax=[]
+    ifsmin=[]
     for x in prof:
-        smax.append(max(map(np.amax,x)))
-        smin.append(min(map(np.amin,x)))
-    smax=max(smax)
-    smin=min(smin)
+        ifsmax.append(max(map(np.amax,x)))
+        ifsmin.append(min(map(np.amin,x)))
+    ifsmax=max(ifsmax)
+    ifsmin=min(ifsmin)
 if Isel=="xprof":
     prof2=[]
     prof2ave=[]
@@ -1069,43 +869,245 @@ if Isel=="xprof":
             prof2lab.append(Zlabmini[i])
             if dim:
                 prof2lab[-1]+=Zlabelunit[Zsel[i]]
-    smax=[]
-    smin=[]
+    ifsmax=[]
+    ifsmin=[]
     for x in prof2:
-        smax.append(max(map(np.amax,x)))
-        smin.append(min(map(np.amin,x)))
-    smax=max(smax)
-    smin=min(smin)
+        ifsmax.append(max(map(np.amax,x)))
+        ifsmin.append(min(map(np.amin,x)))
+    ifsmax=max(ifsmax)
+    ifsmin=min(ifsmin)
+
+#--------------------------------------
+# Setup of the plots
+#--------------------------------------
+
+fig=plt.figure(num=10,figsize=(16,9))
+
+# General title
+
+fig.suptitle('Spatial fields in the model MAOOAM')
+
+# General subtitle
+
+suptit=r'atmosphere $'+ageom.replace('x','x$-$')+r'y$  ocean $'+ogeom.replace('x','x$-$')+r'y$'
+fig.text(0.42,0.92,'Resolution : '+suptit)
+
+# Setting the six views
+
+ax1=fig.add_subplot(2,3,1)
+ax2=fig.add_subplot(2,3,4,projection='3d')
+ax3=fig.add_subplot(2,3,2)
+ax4=fig.add_subplot(2,3,3)
+ax5=fig.add_subplot(2,3,5)
+ax6=fig.add_subplot(2,3,6)
+
+# Views title
+
+ax1.set_title(Ivtit[Isel])
+ax2.set_title('3-D phase space projection')
+ax2.text2D(0.5, 0.9,'(Non-dimensional units)', horizontalalignment='center',verticalalignment='center',transform=ax2.transAxes,fontdict={'size':12})
+ax3.set_title(Zlab[1])
+ax4.set_title(Zlab[3]) 
+ax5.set_title(Zlab[0])
+ax6.set_title(Zlab[2])
+
+# 3D view axis ranges and labels
+#----------------------------------
+
+# Range
+#ax.view_init(20,24)
+mv=0.25 # Overflow factor
+smax=3*[-30000.]
+x=sete[0]
+smax[0]=max(smax[0],np.amax(x[sd[showp[0]]][n1[0],:]))
+smax[1]=max(smax[1],np.amax(x[sd[showp2[0]]][n2[0],:]))
+smax[2]=max(smax[2],np.amax(x[sd[showp3[0]]][n3[0],:]))
+smin=smax[:]
+smin[0]=min(smin[0],np.amin(x[sd[showp[0]]][n1[0],:]))
+smin[1]=min(smin[1],np.amin(x[sd[showp2[0]]][n2[0],:]))
+smin[2]=min(smin[2],np.amin(x[sd[showp3[0]]][n3[0],:]))
+dmm=[]
+for i in range(3):
+    dmm.append(smax[i]-smin[i])
+
+# Rescaling
+smax[0]=smax[0]+dmm[0]*mv
+smax[1]=smax[1]+dmm[1]*mv
+smax[2]=smax[2]+dmm[2]*mv
+smin[0]=smin[0]-dmm[0]*mv
+smin[1]=smin[1]-dmm[1]*mv
+smin[2]=smin[2]-dmm[2]*mv
+
+# Setting the limits
+ax2.set_xlim(smin[0],smax[0])
+ax2.set_ylim(smin[1],smax[1])
+ax2.set_zlim(smin[2],smax[2])
+fig.canvas.draw()
+
+# Setting the ticks and the labels on the 3D view
+
+# x ticks and axis label
+
+labels = [item.get_text() for item in ax2.get_xticklabels()]
+ii=len(labels)-1
+labto=[]
+#	print labels
+jk=0
+for x in labels:
+    if x:
+        jk+=1
+        y=float(x.replace(u'\u2212',u'-'))
+        y=y/dimdv[showp[0]]
+        if jk==1:
+            n=order(y)
+        if abs(n)>2:
+            y=y*10**(-n)
+            y=round(y,2)
+            # labto.append(unicode(y).replace(u'-',u'\u2212')+u'e'+unicode(n).replace(u'-',u'\u2212'))
+            labto.append(unicode(y).replace(u'-',u'\u2212')+unicode(r'$\times 10^{'+str(n)+r'}$'))
+	else:
+            y=round(y,2)
+            labto.append(unicode(y).replace(u'-',u'\u2212'))
+    else:
+        ii-=1
+        labto.append(x)
+ax2.set_xticklabels(labto)
+til1=ax2.xaxis.get_major_ticks()
+for j in range(0,len(til1),1):
+    til1[j].label1.set_visible(False)
+til1[ii].label1.set_visible(True)
+til1[0].label1.set_visible(True)
+
+if showp[0]=='time':
+    ax2.set_xlabel('\n\n'+r'$'+vl[showp[0]]+r'$',fontdict={'size':18})
+else:
+#    if abs(n)>2:
+#        ax2.set_xlabel('\n\n'+r'$'+vl[showp[0]]+str(n1[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})
+#    else:
+    ax2.set_xlabel('\n\n\n'+r'$'+vl[showp[0]]+str(n1[0]+1)+r'}$',fontdict={'size':18})
+
+# y ticks and axis label
+
+labels = [item.get_text() for item in ax2.get_yticklabels()]
+ii=len(labels)-1
+labto=[]
+jk=0
+for x in labels:
+    if x:
+        jk+=1
+        y=float(x.replace(u'\u2212',u'-'))
+        y=y/dimdv[showp2[0]]
+        if jk==1:
+            n=order(y)
+        if abs(n)>2:
+            y=y*10**(-n)
+            y=round(y,2)
+            # labto.append(unicode(y).replace(u'-',u'\u2212')+u'e'+unicode(n).replace(u'-',u'\u2212'))
+            labto.append(unicode(y).replace(u'-',u'\u2212')+unicode(r'$\times 10^{'+str(n)+r'}$'))
+	else:
+            y=round(y,2)
+            labto.append(unicode(y).replace(u'-',u'\u2212'))
+    else:
+        ii-=1
+        labto.append(x)
+ax2.set_yticklabels(labto)
+til2=ax2.yaxis.get_major_ticks()
+for j in range(0,len(til2),1):
+    til2[j].label1.set_visible(False)
+til2[ii].label1.set_visible(True)
+til2[0].label1.set_visible(True)
+
+#if abs(n)>2:
+#    ax2.set_ylabel('\n\n'+r'$'+vl[showp2[0]]+str(n2[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})
+#else:
+ax2.set_ylabel('\n\n'+r'$'+vl[showp2[0]]+str(n2[0]+1)+r'}$',fontdict={'size':18})
+
+# z ticks
+
+labels = [item.get_text() for item in ax2.get_zticklabels()]
+ii=len(labels)-1
+labto=[]
+jk=0
+for x in labels:
+    if x:
+        jk+=1
+        y=float(x.replace(u'\u2212',u'-'))
+        y=y/dimdv[showp3[0]]
+        if jk==1:
+            n=order(y)
+        if abs(n)>2:
+            y=y*10**(-n)
+            y=round(y,2)
+            # labto.append(unicode(y).replace(u'-',u'\u2212')+u'e'+unicode(n).replace(u'-',u'\u2212'))
+            labto.append(unicode(y).replace(u'-',u'\u2212')+unicode(r'$\times 10^{'+str(n)+r'}$'))
+	else:
+            y=round(y,2)
+            labto.append(unicode(y).replace(u'-',u'\u2212'))
+    else:
+        ii-=1
+        labto.append(x)
+ax2.set_zticklabels(labto)
+til3=ax2.zaxis.get_major_ticks()
+for j in range(0,len(til3),1):
+    til3[j].label1.set_visible(False)
+til3[ii-1].label1.set_visible(True)
+til3[0].label1.set_visible(True)
+
+#if abs(n)>2:
+#    ax2.set_zlabel(''+r'$'+vl[showp3[0]]+str(n3[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})    
+#else:
+ax2.set_zlabel(''+r'$'+vl[showp3[0]]+str(n3[0]+1)+r'}$',fontdict={'size':18})
 
 
-#------------------------------------------
-# Last figures setup
-#------------------------------------------
+# ticks alignement
 
-# Setting the limit of the view showing the differences
+[t.set_va('center') for t in ax2.get_yticklabels()]
+[t.set_ha('left') for t in ax2.get_yticklabels()]
+[t.set_va('center') for t in ax2.get_xticklabels()]
+[t.set_ha('right') for t in ax2.get_xticklabels()]
+[t.set_va('center') for t in ax2.get_zticklabels()]
+[t.set_ha('left') for t in ax2.get_zticklabels()]
+
+# Other views labels
+#--------------------
+
+ax3.set_xlabel('$x^\prime$')
+ax3.set_ylabel('$y^\prime$')
+
+ax4.set_xlabel('$x^\prime$')
+ax4.set_ylabel('$y^\prime$')
+
+ax5.set_xlabel('$x^\prime$')
+ax5.set_ylabel('$y^\prime$')
+
+ax6.set_xlabel('$x^\prime$')
+ax6.set_ylabel('$y^\prime$')
+
+# Setting the limit of the infoview
+#-------------------------------------------------------
 if Isel=="diff":
     ax1.set_xlim(0.,sete[0][4][0,ste-1]-sete[0][4][0,sti])
-    if smin>0.:
-        ax1.set_ylim(0.9*smin,1.4*smax)
+    if ifsmin>0.:
+        ax1.set_ylim(0.9*ifsmin,1.4*ifsmax)
     else:
-        ax1.set_ylim(1.1*smin,1.4*smax)
+        ax1.set_ylim(1.1*ifsmin,1.4*ifsmax)
     if dim:
         ax1.set_xlabel('time (years)')
     else:
         ax1.set_xlabel('time (timeunits)')
 if Isel=="yprof":
     ax1.set_xlim(Y[0,0],Y[-1,0])
-    if smin>0.:
-        ax1.set_ylim(0.9*smin,1.4*smax)
+    if ifsmin>0.:
+        ax1.set_ylim(0.9*ifsmin,1.4*ifsmax)
     else:
-        ax1.set_ylim(1.1*smin,1.4*smax)
+        ax1.set_ylim(1.1*ifsmin,1.4*ifsmax)
     ax1.set_xlabel(r'$y^\prime$')
 if Isel=="xprof":
     ax1.set_xlim(X[0,0],X[0,-1])
-    if smin>0.:
-        ax1.set_ylim(0.9*smin,1.4*smax)
+    if ifsmin>0.:
+        ax1.set_ylim(0.9*ifsmin,1.4*ifsmax)
     else:
-        ax1.set_ylim(1.1*smin,1.4*smax)
+        ax1.set_ylim(1.1*ifsmin,1.4*ifsmax)
     ax1.set_xlabel(r'$x^\prime$')
 
 
