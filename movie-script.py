@@ -79,20 +79,19 @@ import subprocess
 #                     - va3: atmospheric lower V wind component
 
 
-Zsel=['at','ap','ap1','ap3']
+Zsel=['at','ap','ua','va']
 
 # Selection of the infoview mode:
 #---------------------------------
 
-Isel="diff"
+Isel="xprof"
 
 #Isel can be : - diff : Difference plot of various quantities (i.e. atm. geopot. height diff.)
 #              - yprof : Profile of various quantities along the spatial direction y
 #              - xprof : Profile of various quantities along the spatial direction x
-#              - omode : Instaneous spectral oceanic mode contents
-#              - amode : Instaneous spectral atmospheric mode contents
+#              - mode : Instaneous spectral modes contents
 
-IIsel=['geo','sp2','sp3','sp4']
+IIsel=['sp3','spa3']
 
 # IIsel : List holding the content to be shown in the infoview
 #
@@ -100,6 +99,16 @@ IIsel=['geo','sp2','sp3','sp4']
 #     For the "diff" mode:
 #               - geo : Time evolution of the North-South geopotential height difference at 500mb 
 #               - sp(n): Difference between n-th displayed spatial field maximum and minimum
+#     For the "yprof" mode:
+#               - sp(n): Profile of the (n)-th displayed spatial field in the y spatial direction 
+#                         and at the middle of domain
+#               - spa(n): Profile of the (n)-th displayed spatial field in the y spatial direction
+#                         and averaged in the x direction
+#     For the "xprof" mode:
+#               - sp(n): Profile of the (n)-th displayed spatial field in the x spatial direction 
+#                         and at the middle of domain
+#               - spa(n): Profile of the (n)-th displayed spatial field in the x spatial direction
+#                         and averaged in the y direction
 
 
 # Mailserver configuration
@@ -173,7 +182,7 @@ dimdv={'psi':dimd['strfunc']*dimd['geo'],'theta':2*dimd['temp'],'A':dimd['strfun
 
 # Infoview labels
 
-Ivtit={'diff':"Differences plot"}
+Ivtit={'diff':"Differences plot",'yprof':"Meridional profile",'xprof':"Zonal profile"}
 
 
 # Utility functions
@@ -819,13 +828,38 @@ sh=X.shape
 Z=[]
 Zm=[]
 ZM=[]
+
+yprof=[]
+yprofmid=[]
+yprofmidave=[]
+yprofave=[]
+
 for i in range(4):
     Z.append([])
     Zm.append([])
     ZM.append([])
+    yprof.append([])
+    yprofmid.append([])
+    yprofmidave.append([])
+    yprofave.append([])
+
+xprof=[]
+xprofmid=[]
+xprofmidave=[]
+xprofave=[]
+
+for i in range(4):
+    Z.append([])
+    Zm.append([])
+    ZM.append([])
+    xprof.append([])
+    xprofmid.append([])
+    xprofmidave.append([])
+    xprofave.append([])
+
+
 
 geoap=[]
-
 
 mmin=np.zeros((4))
 mmax=np.zeros((4))
@@ -930,7 +964,8 @@ for i in range(sti,ste,ite):
     if 'ap3' in Zsel:
         Z[Zsel.index('ap3')].append(astream(X,Y,x[0][:,i])-astream(X,Y,x[1][:,i]*(dimdv['psi']/dimdv['theta'])))
 
-    geoap.append(geodiff(x[0][:,i]))
+    if 'geo' in IIsel:
+        geoap.append(geodiff(x[0][:,i]))
 
     for j in range(4):
         ZM[j].append(np.amax(Z[j][-1]))
@@ -940,9 +975,36 @@ for i in range(sti,ste,ite):
         mmax[j]=max(mmax[j],ZM[j][-1])
         mmin[j]=min(mmin[j],Zm[j][-1])
     
+    if Isel=='yprof':
+        for j in range(4):
+            yprof[j].append(np.mean(Z[j][-1],axis=1))
+            yprofmid[j].append(Z[j][-1][:,sh[1]/2])
+            if i==sti:
+                yprofmidave[j].append(yprofmid[j][-1])
+                yprofave[j].append(yprof[j][-1])
+            else:
+                y=yprofmidave[j][-1]+(yprofmid[j][-1]-yprofmidave[j][-1])/(i-sti)
+                yprofmidave[j].append(y)
+                y=yprofave[j][-1]+(yprof[j][-1]-yprofave[j][-1])/(i-sti)
+                yprofave[j].append(y)
+    if Isel=='xprof':
+        for j in range(4):
+            xprof[j].append(np.mean(Z[j][-1],axis=0))
+            xprofmid[j].append(Z[j][-1][sh[0]/2,:])
+            if i==sti:
+                xprofmidave[j].append(xprofmid[j][-1])
+                xprofave[j].append(xprof[j][-1])
+            else:
+                y=xprofmidave[j][-1]+(xprofmid[j][-1]-xprofmidave[j][-1])/(i-sti)
+                xprofmidave[j].append(y)
+                y=xprofave[j][-1]+(xprof[j][-1]-xprofave[j][-1])/(i-sti)
+                xprofave[j].append(y)
+            
+    
 ZM=np.array(ZM)
 Zm=np.array(Zm)
-geoap=np.array(geoap)
+if 'geo' in IIsel:
+    geoap=np.array(geoap)
 
 if Isel=="diff":
     diff=[]
@@ -960,9 +1022,61 @@ if Isel=="diff":
             if dim:
                 difflab[-1]+=strg
 
-
     smax=max(map(np.amax,diff))
     smin=min(map(np.amin,diff))
+if Isel=="yprof":
+    prof=[]
+    profave=[]
+    proflab=[]
+    for x in IIsel:
+        if 'spa' in x:
+            i=int(x[3])-1
+            prof.append(yprof[i])
+            profave.append(yprofave[i])
+            proflab.append('Z.A. '+Zlabmini[i])
+            if dim:
+                proflab[-1]+=Zlabelunit[Zsel[i]]
+        elif 'sp' in x:
+            i=int(x[2])-1
+            prof.append(yprofmid[i])
+            profave.append(yprofmidave[i])
+            proflab.append(Zlabmini[i])
+            if dim:
+                proflab[-1]+=Zlabelunit[Zsel[i]]
+    smax=[]
+    smin=[]
+    for x in prof:
+        smax.append(max(map(np.amax,x)))
+        smin.append(min(map(np.amin,x)))
+    smax=max(smax)
+    smin=min(smin)
+if Isel=="xprof":
+    prof2=[]
+    prof2ave=[]
+    prof2lab=[]
+    for x in IIsel:
+        if 'spa' in x:
+            i=int(x[3])-1
+            prof2.append(xprof[i])
+            prof2ave.append(xprofave[i])
+            prof2lab.append('Z.A. '+Zlabmini[i])
+            if dim:
+                prof2lab[-1]+=Zlabelunit[Zsel[i]]
+        elif 'sp' in x:
+            i=int(x[2])-1
+            prof2.append(xprofmid[i])
+            prof2ave.append(xprofmidave[i])
+            prof2lab.append(Zlabmini[i])
+            if dim:
+                prof2lab[-1]+=Zlabelunit[Zsel[i]]
+    smax=[]
+    smin=[]
+    for x in prof2:
+        smax.append(max(map(np.amax,x)))
+        smin.append(min(map(np.amin,x)))
+    smax=max(smax)
+    smin=min(smin)
+
 
 #------------------------------------------
 # Last figures setup
@@ -972,13 +1086,29 @@ if Isel=="diff":
 if Isel=="diff":
     ax1.set_xlim(0.,sete[0][4][0,ste-1]-sete[0][4][0,sti])
     if smin>0.:
-        ax1.set_ylim(0.9*smin,1.1*smax)
+        ax1.set_ylim(0.9*smin,1.4*smax)
     else:
-        ax1.set_ylim(1.1*smin,1.1*smax)
+        ax1.set_ylim(1.1*smin,1.4*smax)
     if dim:
         ax1.set_xlabel('time (years)')
     else:
         ax1.set_xlabel('time (timeunits)')
+if Isel=="yprof":
+    ax1.set_xlim(Y[0,0],Y[-1,0])
+    if smin>0.:
+        ax1.set_ylim(0.9*smin,1.4*smax)
+    else:
+        ax1.set_ylim(1.1*smin,1.4*smax)
+    ax1.set_xlabel(r'$y^\prime$')
+if Isel=="xprof":
+    ax1.set_xlim(X[0,0],X[0,-1])
+    if smin>0.:
+        ax1.set_ylim(0.9*smin,1.4*smax)
+    else:
+        ax1.set_ylim(1.1*smin,1.4*smax)
+    ax1.set_xlabel(r'$x^\prime$')
+
+
 
 #------------------------------
 # Initialization of the animation
@@ -992,8 +1122,46 @@ if Isel=="diff":
         xrlines.append(None)
     for i in range(len(diff)):
         xrlines[i],=ax1.plot([],[],label=difflab[i])
+    ax1.legend(fontsize=12)
+if Isel=="yprof":
+    xrlines=[]
+    for i in range(len(prof)):
+        xrlines.append(None)
+    for i in range(len(prof)):
+        xrlines[i],=ax1.plot([],[],label=proflab[i])
+    for i in range(len(prof)):
+        xrlines[i].set_xdata(Y[:,0])
+
+    xralines=[]
+    for i in range(len(profave)):
+        xralines.append(None)
+    for i in range(len(profave)):
+        xralines[i],=ax1.plot([],[],color=xrlines[i].get_color(),ls=':')
+    for i in range(len(profave)):
+        xralines[i].set_xdata(Y[:,0])
+    ax1.plot([],[],color='k',ls=':',label='Time ave.')
 
     ax1.legend(fontsize=12)
+if Isel=="xprof":
+    xrlines=[]
+    for i in range(len(prof2)):
+        xrlines.append(None)
+    for i in range(len(prof2)):
+        xrlines[i],=ax1.plot([],[],label=prof2lab[i])
+    for i in range(len(prof2)):
+        xrlines[i].set_xdata(X[0,:])
+
+    xralines=[]
+    for i in range(len(prof2ave)):
+        xralines.append(None)
+    for i in range(len(prof2ave)):
+        xralines[i],=ax1.plot([],[],color=xrlines[i].get_color(),ls=':')
+    for i in range(len(prof2ave)):
+        xralines[i].set_xdata(X[0,:])
+    ax1.plot([],[],color='k',ls=':',label='Time ave.')
+
+    ax1.legend(fontsize=12)
+
 
 # Attractor plot
 
@@ -1054,10 +1222,20 @@ def animate(i):
     xpoint.set_data(x[sd[showp[0]]][n1[0],l:l+1],x[sd[showp2[0]]][n2[0],l:l+1])
     xpoint.set_3d_properties(x[sd[showp3[0]]][n3[0],l:l+1])
     
-    # Update of the difference plot
-    for j in range(len(diff)):
-        xrlines[j].set_xdata(x[4][0,:l+1:ival])
-        xrlines[j].set_ydata(diff[j][:l+1:ival])
+    # Update of the info view
+    if Isel=='diff':
+        for j in range(len(diff)):
+            xrlines[j].set_xdata(x[4][0,:l+1:ival])
+            xrlines[j].set_ydata(diff[j][:l+1:ival])
+    if Isel=='yprof':
+        for j in range(len(prof)):
+            xrlines[j].set_ydata(prof[j][l])
+            xralines[j].set_ydata(profave[j][l])
+    if Isel=='xprof':
+        for j in range(len(prof2)):
+            xrlines[j].set_ydata(prof2[j][l])
+            xralines[j].set_ydata(prof2ave[j][l])
+    
 
     # Actualising the fields plot
     # ax6.cla()
