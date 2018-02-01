@@ -45,13 +45,12 @@ import subprocess
 # Organization of the figures layout
 #-----------------------------------
 
-# ----------------------------------
-# |  info   |   2      |      4    |
-# ----------------------------------
-# |  3D     |   1      |      3    |
-# ----------------------------------
-# info : information view
-# 3D   : 3D phase space projection
+# -----------------------------------
+# |  info1   |   2      |      4    |
+# -----------------------------------
+# |  info2   |   1      |      3    |
+# -----------------------------------
+# info1-2 : information views
 # 1--4 : spatial fields representations
 
 # Selection of the spatial fields
@@ -78,21 +77,24 @@ import subprocess
 #                     - va3: atmospheric lower V wind component
 
 
-Zsel=['at','ap','ot','op']
+Zsel=['ap','ua','op','uo']
 
-# Selection of the infoview mode:
+# Selection of the 1-2 infoviews modes:
 #---------------------------------
 
-Isel="mode"
+Isel=["yprof","yprof"] # first relates to info1, second to info2
 
-#Isel can be : - diff : Difference plot of various quantities (i.e. atm. geopot. height diff.)
-#              - yprof : Profile of various quantities along the spatial direction y
-#              - xprof : Profile of various quantities along the spatial direction x
-#              - mode : Instaneous spectral modes contents
+#Isel components can be : - diff : Difference plot of various quantities (i.e. geopot. height diff.)
+#                         - yprof : Profile of various quantities along the spatial direction y
+#                         - xprof : Profile of various quantities along the spatial direction x
+#                         - mode : Instaneous spectral modes contents
+#                         - 3D : 3D projection of the attractor, with locator (warning: both 
+#                                infoviews cannot be simultaneously in 3D mode)
 
-IIsel=['op']
+IIsel=[['sp2','spa2'],['sp4','spa4']]
 
-# IIsel : List holding the content to be shown in the infoview
+# IIsel : List holding the content to be shown in the infoviews
+#         Again, first list relates to info1, second to info2
 #
 # Available content:
 #     For the "diff" mode:
@@ -187,7 +189,7 @@ dimdv={'psi':dimd['strfunc']*dimd['geo'],'theta':2*dimd['temp'],'A':dimd['strfun
 
 # Infoview labels
 
-Ivtit={'diff':"Differences plot",'yprof':"Meridional profile",'xprof':"Zonal profile","mode":r"% Modes distribution"}
+Ivtit={'diff':"Differences plot",'yprof':"Meridional profile",'xprof':"Zonal profile","mode":r"% Modes distribution","3D":'3-D phase space projection'}
 
 
 # Utility functions
@@ -742,23 +744,24 @@ za=[]
 zk=[]
 zl=[]
 
-if 'a' in IIsel[0]:
-    ss=ass
-else:
-    ss=oss
+if 'mode' in Isel:
+    if 'a' in IIsel[Isel.index('mode')][0]:
+        ss=ass
+    else:
+        ss=oss
 
-z0=np.zeros(ss).flatten()
-nx=np.arange(ss[0])-0.5
-ny=np.arange(ss[1])
-NXa, NYa = np.meshgrid(nx-1.,ny)
-NXa=NXa.flatten()
-NYa=NYa.flatten()
-NXk, NYk = np.meshgrid(nx,ny)
-NXk=NXk.flatten()
-NYk=NYk.flatten()
-NXl, NYl = np.meshgrid(nx+0.5,ny+0.5)
-NXl=NXl.flatten()
-NYl=NYl.flatten()
+    z0=np.zeros(ss).flatten()
+    nx=np.arange(ss[0])-0.5
+    ny=np.arange(ss[1])
+    NXa, NYa = np.meshgrid(nx-1.,ny)
+    NXa=NXa.flatten()
+    NYa=NYa.flatten()
+    NXk, NYk = np.meshgrid(nx,ny)
+    NXk=NXk.flatten()
+    NYk=NYk.flatten()
+    NXl, NYl = np.meshgrid(nx+0.5,ny+0.5)
+    NXl=NXl.flatten()
+    NYl=NYl.flatten()
 
 #overall fields max and min
 mmin=np.zeros((4))
@@ -825,8 +828,9 @@ for i in range(sti,ste,ite):
     if 'ap3' in Zsel:
         Z[Zsel.index('ap3')].append(astream(X,Y,x[0][:,i])-astream(X,Y,x[1][:,i]*(dimdv['psi']/dimdv['theta'])))
 
-    if 'geo' in IIsel:
-        geoap.append(geodiff(x[0][:,i]))
+    if 'diff' in Isel:
+        if 'geo' in IIsel[Isel.index('diff')]:
+            geoap.append(geodiff(x[0][:,i]))
 
     for j in range(4):
         ZM[j].append(np.amax(Z[j][-1]))
@@ -836,7 +840,7 @@ for i in range(sti,ste,ite):
         mmax[j]=max(mmax[j],ZM[j][-1])
         mmin[j]=min(mmin[j],Zm[j][-1])
     
-    if Isel=='yprof':
+    if 'yprof' in Isel:
         for j in range(4):
             yprof[j].append(np.mean(Z[j][-1],axis=1))
             yprofmid[j].append(Z[j][-1][:,sh[1]/2])
@@ -848,7 +852,7 @@ for i in range(sti,ste,ite):
                 yprofmidave[j].append(y)
                 y=yprofave[j][-1]+(yprof[j][-1]-yprofave[j][-1])/(i-sti)
                 yprofave[j].append(y)
-    if Isel=='xprof':
+    if 'xprof' in Isel:
         for j in range(4):
             xprof[j].append(np.mean(Z[j][-1],axis=0))
             xprofmid[j].append(Z[j][-1][sh[0]/2,:])
@@ -860,14 +864,15 @@ for i in range(sti,ste,ite):
                 xprofmidave[j].append(y)
                 y=xprofave[j][-1]+(xprof[j][-1]-xprofave[j][-1])/(i-sti)
                 xprofave[j].append(y)
-    if Isel=="mode":
+    if "mode" in Isel:
         za.append(np.zeros(ss))
         zk.append(np.zeros(ss))
         zl.append(np.zeros(ss))
-        y=np.absolute(x[sd[sdd[IIsel[0]]]][:,i])
+        ind=Isel.index('mode')
+        y=np.absolute(x[sd[sdd[IIsel[ind][0]]]][:,i])
         y=100*y/y.sum()
         for ii in range(1,len(y)+1):
-            if 'a' in IIsel[0]:
+            if 'a' in IIsel[ind][0]:
                 af=aftable[ii]
             else:
                 af=oftable[ii]
@@ -889,79 +894,95 @@ for i in range(sti,ste,ite):
     
 ZM=np.array(ZM)
 Zm=np.array(Zm)
-if 'geo' in IIsel:
-    geoap=np.array(geoap)
+if 'diff' in Isel:
+    if 'geo' in IIsel[Isel.index('diff')]:
+        geoap=np.array(geoap)
 
-if Isel=="diff":
-    diff=[]
-    difflab=[]
-    for x in IIsel:
-        if 'sp' in x:
-            i=int(x[2])-1
-            diff.append(ZM[i]-Zm[i])
-            difflab.append(Zlabmini[i])
-            if dim:
-                difflab[-1]+=Zlabelunit[Zsel[i]]
-        if x=='geo':
-            diff.append(geoap)
-            difflab.append('Geop. H.')
-            if dim:
-                difflab[-1]+=strg
+if "diff" in Isel:
+    diff=[[],[]]
+    difflab=[[],[]]
 
-    ifsmax=max(map(np.amax,diff))
-    ifsmin=min(map(np.amin,diff))
-if Isel=="yprof":
-    prof=[]
-    profave=[]
-    proflab=[]
-    for x in IIsel:
-        if 'spa' in x:
-            i=int(x[3])-1
-            prof.append(yprof[i])
-            profave.append(yprofave[i])
-            proflab.append('Z.A. '+Zlabmini[i])
-            if dim:
-                proflab[-1]+=Zlabelunit[Zsel[i]]
-        elif 'sp' in x:
-            i=int(x[2])-1
-            prof.append(yprofmid[i])
-            profave.append(yprofmidave[i])
-            proflab.append(Zlabmini[i])
-            if dim:
-                proflab[-1]+=Zlabelunit[Zsel[i]]
-    ifsmax=[]
-    ifsmin=[]
-    for x in prof:
-        ifsmax.append(max(map(np.amax,x)))
-        ifsmin.append(min(map(np.amin,x)))
-    ifsmax=max(ifsmax)
-    ifsmin=min(ifsmin)
-if Isel=="xprof":
-    prof2=[]
-    prof2ave=[]
-    prof2lab=[]
-    for x in IIsel:
-        if 'spa' in x:
-            i=int(x[3])-1
-            prof2.append(xprof[i])
-            prof2ave.append(xprofave[i])
-            prof2lab.append('Z.A. '+Zlabmini[i])
-            if dim:
-                prof2lab[-1]+=Zlabelunit[Zsel[i]]
-        elif 'sp' in x:
-            i=int(x[2])-1
-            prof2.append(xprofmid[i])
-            prof2ave.append(xprofmidave[i])
-            prof2lab.append(Zlabmini[i])
-            if dim:
-                prof2lab[-1]+=Zlabelunit[Zsel[i]]
-    ifsmax=[]
-    ifsmin=[]
-    for x in prof2:
-        ifsmax.append(max(map(np.amax,x)))
-        ifsmin.append(min(map(np.amin,x)))
-    ifsmax=max(ifsmax)
-    ifsmin=min(ifsmin)
+if "yprof" in Isel:
+    prof=[[],[]]
+    profave=[[],[]]
+    proflab=[[],[]]
+
+if "xprof" in Isel:
+    prof2=[[],[]]
+    prof2ave=[[],[]]
+    prof2lab=[[],[]]
+
+x=ifsmax
+ifsmax=[None,None]
+ifsmin=[None,None]
+if 'mode' in Isel:
+    ifsmax[Isel.index('mode')]=x
+
+ii=0
+for z in Isel:
+    if z=="diff":
+        for x in IIsel[ii]:
+            if 'sp' in x:
+                i=int(x[2])-1
+                diff[ii].append(ZM[i]-Zm[i])
+                difflab[ii].append(Zlabmini[i])
+                if dim:
+                    difflab[ii][-1]+=Zlabelunit[Zsel[i]]
+            if x=='geo':
+                diff[ii].append(geoap)
+                difflab[ii].append('Geop. H.')
+                if dim:
+                    difflab[ii][-1]+=strg
+
+        ifsmax[ii]=max(map(np.amax,diff[ii]))
+        ifsmin[ii]=min(map(np.amin,diff[ii]))
+    if z=="yprof":
+        for x in IIsel[ii]:
+            if 'spa' in x:
+                i=int(x[3])-1
+                prof[ii].append(yprof[i])
+                profave[ii].append(yprofave[i])
+                proflab[ii].append('Z.A. '+Zlabmini[i])
+                if dim:
+                    proflab[ii][-1]+=Zlabelunit[Zsel[i]]
+            elif 'sp' in x:
+                i=int(x[2])-1
+                prof[ii].append(yprofmid[i])
+                profave[ii].append(yprofmidave[i])
+                proflab[ii].append(Zlabmini[i])
+                if dim:
+                    proflab[ii][-1]+=Zlabelunit[Zsel[i]]
+        ifsmax[ii]=[]
+        ifsmin[ii]=[]
+        for x in prof[ii]:
+            ifsmax[ii].append(max(map(np.amax,x)))
+            ifsmin[ii].append(min(map(np.amin,x)))
+        ifsmax[ii]=max(ifsmax[ii])
+        ifsmin[ii]=min(ifsmin[ii])
+    if z=="xprof":
+        for x in IIsel[ii]:
+            if 'spa' in x:
+                i=int(x[3])-1
+                prof2[ii].append(xprof[i])
+                prof2ave[ii].append(xprofave[i])
+                prof2lab[ii].append('Z.A. '+Zlabmini[i])
+                if dim:
+                    prof2lab[ii][-1]+=Zlabelunit[Zsel[i]]
+            elif 'sp' in x:
+                i=int(x[2])-1
+                prof2[ii].append(xprofmid[i])
+                prof2ave[ii].append(xprofmidave[i])
+                prof2lab[ii].append(Zlabmini[i])
+                if dim:
+                    prof2lab[ii][-1]+=Zlabelunit[Zsel[i]]
+        ifsmax[ii]=[]
+        ifsmin[ii]=[]
+        for x in prof2[ii]:
+            ifsmax[ii].append(max(map(np.amax,x)))
+            ifsmin[ii].append(min(map(np.amin,x)))
+        ifsmax[ii]=max(ifsmax[ii])
+        ifsmin[ii]=min(ifsmin[ii])
+    ii+=1
 
 #--------------------------------------
 # Setup of the plots
@@ -980,11 +1001,14 @@ fig.text(0.42,0.92,'Resolution : '+suptit)
 
 # Setting the six views
 
-if Isel=="mode":
+if Isel[0] in ["3D","mode"]:
     ax1=fig.add_subplot(2,3,1,projection='3d')
 else:
     ax1=fig.add_subplot(2,3,1)
-ax2=fig.add_subplot(2,3,4,projection='3d')
+if Isel[1] in ["3D","mode"]:
+    ax2=fig.add_subplot(2,3,4,projection='3d')
+else:
+    ax2=fig.add_subplot(2,3,4)
 ax3=fig.add_subplot(2,3,2)
 ax4=fig.add_subplot(2,3,3)
 ax5=fig.add_subplot(2,3,5)
@@ -992,172 +1016,181 @@ ax6=fig.add_subplot(2,3,6)
 
 # Views title
 
-ax1.set_title(Ivtit[Isel])
-if Isel=="mode":
-    ax1.text2D(0.5, 0.9,Zlabelmini[IIsel[0]], horizontalalignment='center',verticalalignment='center',transform=ax1.transAxes,fontdict={'size':12})
-ax2.set_title('3-D phase space projection')
-ax2.text2D(0.5, 0.9,'(Non-dimensional units)', horizontalalignment='center',verticalalignment='center',transform=ax2.transAxes,fontdict={'size':12})
+ax1.set_title(Ivtit[Isel[0]])
+if Isel[0]=="mode":
+    ax1.text2D(0.5, 0.9,Zlabelmini[IIsel[0][0]], horizontalalignment='center',verticalalignment='center',transform=ax1.transAxes,fontdict={'size':12})
+if Isel[0]=="3D":
+    ax1.text2D(0.5, 0.9,'(Non-dimensional units)', horizontalalignment='center',verticalalignment='center',transform=ax1.transAxes,fontdict={'size':12})
+ax2.set_title(Ivtit[Isel[1]])
+if Isel[1]=="mode":
+    ax2.text2D(0.5, 0.9,Zlabelmini[IIsel[1][0]], horizontalalignment='center',verticalalignment='center',transform=ax2.transAxes,fontdict={'size':12})
+if Isel[1]=="3D":
+    ax2.text2D(0.5, 0.9,'(Non-dimensional units)', horizontalalignment='center',verticalalignment='center',transform=ax2.transAxes,fontdict={'size':12})
+
 ax3.set_title(Zlab[1])
 ax4.set_title(Zlab[3]) 
 ax5.set_title(Zlab[0])
 ax6.set_title(Zlab[2])
 
+axm=[ax1,ax2]
+
 # 3D view axis ranges and labels
 #----------------------------------
 
 # Range
-#ax.view_init(20,24)
-mv=0.25 # Overflow factor
-smax=3*[-30000.]
-x=sete[0]
-smax[0]=max(smax[0],np.amax(x[sd[showp[0]]][n1[0],:]))
-smax[1]=max(smax[1],np.amax(x[sd[showp2[0]]][n2[0],:]))
-smax[2]=max(smax[2],np.amax(x[sd[showp3[0]]][n3[0],:]))
-smin=smax[:]
-smin[0]=min(smin[0],np.amin(x[sd[showp[0]]][n1[0],:]))
-smin[1]=min(smin[1],np.amin(x[sd[showp2[0]]][n2[0],:]))
-smin[2]=min(smin[2],np.amin(x[sd[showp3[0]]][n3[0],:]))
-dmm=[]
-for i in range(3):
-    dmm.append(smax[i]-smin[i])
+if "3D" in Isel:
+    axs=axm[Isel.index('3D')]
+    mv=0.25 # Overflow factor
+    smax=3*[-30000.]
+    x=sete[0]
+    smax[0]=max(smax[0],np.amax(x[sd[showp[0]]][n1[0],:]))
+    smax[1]=max(smax[1],np.amax(x[sd[showp2[0]]][n2[0],:]))
+    smax[2]=max(smax[2],np.amax(x[sd[showp3[0]]][n3[0],:]))
+    smin=smax[:]
+    smin[0]=min(smin[0],np.amin(x[sd[showp[0]]][n1[0],:]))
+    smin[1]=min(smin[1],np.amin(x[sd[showp2[0]]][n2[0],:]))
+    smin[2]=min(smin[2],np.amin(x[sd[showp3[0]]][n3[0],:]))
+    dmm=[]
+    for i in range(3):
+        dmm.append(smax[i]-smin[i])
 
-# Rescaling
-smax[0]=smax[0]+dmm[0]*mv
-smax[1]=smax[1]+dmm[1]*mv
-smax[2]=smax[2]+dmm[2]*mv
-smin[0]=smin[0]-dmm[0]*mv
-smin[1]=smin[1]-dmm[1]*mv
-smin[2]=smin[2]-dmm[2]*mv
+    # Rescaling
+    smax[0]=smax[0]+dmm[0]*mv
+    smax[1]=smax[1]+dmm[1]*mv
+    smax[2]=smax[2]+dmm[2]*mv
+    smin[0]=smin[0]-dmm[0]*mv
+    smin[1]=smin[1]-dmm[1]*mv
+    smin[2]=smin[2]-dmm[2]*mv
 
-# Setting the limits
-ax2.set_xlim(smin[0],smax[0])
-ax2.set_ylim(smin[1],smax[1])
-ax2.set_zlim(smin[2],smax[2])
-fig.canvas.draw()
+    # Setting the limits
+    axs.set_xlim(smin[0],smax[0])
+    axs.set_ylim(smin[1],smax[1])
+    axs.set_zlim(smin[2],smax[2])
+    fig.canvas.draw()
 
-# Setting the ticks and the labels on the 3D view
+    # Setting the ticks and the labels on the 3D view
 
-# x ticks and axis label
+    # x ticks and axis label
 
-labels = [item.get_text() for item in ax2.get_xticklabels()]
-ii=len(labels)-1
-labto=[]
-#	print labels
-jk=0
-for x in labels:
-    if x:
-        jk+=1
-        y=float(x.replace(u'\u2212',u'-'))
-        y=y/dimdv[showp[0]]
-        if jk==1:
-            n=order(y)
-        if abs(n)>2:
-            y=y*10**(-n)
-            y=round(y,2)
-            # labto.append(unicode(y).replace(u'-',u'\u2212')+u'e'+unicode(n).replace(u'-',u'\u2212'))
-            labto.append(unicode(y).replace(u'-',u'\u2212')+unicode(r'$\times 10^{'+str(n)+r'}$'))
-	else:
-            y=round(y,2)
-            labto.append(unicode(y).replace(u'-',u'\u2212'))
+    labels = [item.get_text() for item in axs.get_xticklabels()]
+    ii=len(labels)-1
+    labto=[]
+    #	print labels
+    jk=0
+    for x in labels:
+        if x:
+            jk+=1
+            y=float(x.replace(u'\u2212',u'-'))
+            y=y/dimdv[showp[0]]
+            if jk==1:
+                n=order(y)
+            if abs(n)>2:
+                y=y*10**(-n)
+                y=round(y,2)
+                # labto.append(unicode(y).replace(u'-',u'\u2212')+u'e'+unicode(n).replace(u'-',u'\u2212'))
+                labto.append(unicode(y).replace(u'-',u'\u2212')+unicode(r'$\times 10^{'+str(n)+r'}$'))
+            else:
+                y=round(y,2)
+                labto.append(unicode(y).replace(u'-',u'\u2212'))
+        else:
+            ii-=1
+            labto.append(x)
+    axs.set_xticklabels(labto)
+    til1=axs.xaxis.get_major_ticks()
+    for j in range(0,len(til1),1):
+        til1[j].label1.set_visible(False)
+    til1[ii].label1.set_visible(True)
+    til1[0].label1.set_visible(True)
+
+    if showp[0]=='time':
+        axs.set_xlabel('\n\n'+r'$'+vl[showp[0]]+r'$',fontdict={'size':18})
     else:
-        ii-=1
-        labto.append(x)
-ax2.set_xticklabels(labto)
-til1=ax2.xaxis.get_major_ticks()
-for j in range(0,len(til1),1):
-    til1[j].label1.set_visible(False)
-til1[ii].label1.set_visible(True)
-til1[0].label1.set_visible(True)
+    #    if abs(n)>2:
+    #        axs.set_xlabel('\n\n'+r'$'+vl[showp[0]]+str(n1[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})
+    #    else:
+        axs.set_xlabel('\n\n\n'+r'$'+vl[showp[0]]+str(n1[0]+1)+r'}$',fontdict={'size':18})
 
-if showp[0]=='time':
-    ax2.set_xlabel('\n\n'+r'$'+vl[showp[0]]+r'$',fontdict={'size':18})
-else:
-#    if abs(n)>2:
-#        ax2.set_xlabel('\n\n'+r'$'+vl[showp[0]]+str(n1[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})
-#    else:
-    ax2.set_xlabel('\n\n\n'+r'$'+vl[showp[0]]+str(n1[0]+1)+r'}$',fontdict={'size':18})
+    # y ticks and axis label
 
-# y ticks and axis label
+    labels = [item.get_text() for item in axs.get_yticklabels()]
+    ii=len(labels)-1
+    labto=[]
+    jk=0
+    for x in labels:
+        if x:
+            jk+=1
+            y=float(x.replace(u'\u2212',u'-'))
+            y=y/dimdv[showp2[0]]
+            if jk==1:
+                n=order(y)
+            if abs(n)>2:
+                y=y*10**(-n)
+                y=round(y,2)
+                # labto.append(unicode(y).replace(u'-',u'\u2212')+u'e'+unicode(n).replace(u'-',u'\u2212'))
+                labto.append(unicode(y).replace(u'-',u'\u2212')+unicode(r'$\times 10^{'+str(n)+r'}$'))
+            else:
+                y=round(y,2)
+                labto.append(unicode(y).replace(u'-',u'\u2212'))
+        else:
+            ii-=1
+            labto.append(x)
+    axs.set_yticklabels(labto)
+    til2=axs.yaxis.get_major_ticks()
+    for j in range(0,len(til2),1):
+        til2[j].label1.set_visible(False)
+    til2[ii].label1.set_visible(True)
+    til2[0].label1.set_visible(True)
 
-labels = [item.get_text() for item in ax2.get_yticklabels()]
-ii=len(labels)-1
-labto=[]
-jk=0
-for x in labels:
-    if x:
-        jk+=1
-        y=float(x.replace(u'\u2212',u'-'))
-        y=y/dimdv[showp2[0]]
-        if jk==1:
-            n=order(y)
-        if abs(n)>2:
-            y=y*10**(-n)
-            y=round(y,2)
-            # labto.append(unicode(y).replace(u'-',u'\u2212')+u'e'+unicode(n).replace(u'-',u'\u2212'))
-            labto.append(unicode(y).replace(u'-',u'\u2212')+unicode(r'$\times 10^{'+str(n)+r'}$'))
-	else:
-            y=round(y,2)
-            labto.append(unicode(y).replace(u'-',u'\u2212'))
-    else:
-        ii-=1
-        labto.append(x)
-ax2.set_yticklabels(labto)
-til2=ax2.yaxis.get_major_ticks()
-for j in range(0,len(til2),1):
-    til2[j].label1.set_visible(False)
-til2[ii].label1.set_visible(True)
-til2[0].label1.set_visible(True)
+    #if abs(n)>2:
+    #    axs.set_ylabel('\n\n'+r'$'+vl[showp2[0]]+str(n2[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})
+    #else:
+    axs.set_ylabel('\n\n'+r'$'+vl[showp2[0]]+str(n2[0]+1)+r'}$',fontdict={'size':18})
 
-#if abs(n)>2:
-#    ax2.set_ylabel('\n\n'+r'$'+vl[showp2[0]]+str(n2[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})
-#else:
-ax2.set_ylabel('\n\n'+r'$'+vl[showp2[0]]+str(n2[0]+1)+r'}$',fontdict={'size':18})
+    # z ticks
 
-# z ticks
+    labels = [item.get_text() for item in axs.get_zticklabels()]
+    ii=len(labels)-1
+    labto=[]
+    jk=0
+    for x in labels:
+        if x:
+            jk+=1
+            y=float(x.replace(u'\u2212',u'-'))
+            y=y/dimdv[showp3[0]]
+            if jk==1:
+                n=order(y)
+            if abs(n)>2:
+                y=y*10**(-n)
+                y=round(y,2)
+                # labto.append(unicode(y).replace(u'-',u'\u2212')+u'e'+unicode(n).replace(u'-',u'\u2212'))
+                labto.append(unicode(y).replace(u'-',u'\u2212')+unicode(r'$\times 10^{'+str(n)+r'}$'))
+            else:
+                y=round(y,2)
+                labto.append(unicode(y).replace(u'-',u'\u2212'))
+        else:
+            ii-=1
+            labto.append(x)
+    axs.set_zticklabels(labto)
+    til3=axs.zaxis.get_major_ticks()
+    for j in range(0,len(til3),1):
+        til3[j].label1.set_visible(False)
+    til3[ii-1].label1.set_visible(True)
+    til3[0].label1.set_visible(True)
 
-labels = [item.get_text() for item in ax2.get_zticklabels()]
-ii=len(labels)-1
-labto=[]
-jk=0
-for x in labels:
-    if x:
-        jk+=1
-        y=float(x.replace(u'\u2212',u'-'))
-        y=y/dimdv[showp3[0]]
-        if jk==1:
-            n=order(y)
-        if abs(n)>2:
-            y=y*10**(-n)
-            y=round(y,2)
-            # labto.append(unicode(y).replace(u'-',u'\u2212')+u'e'+unicode(n).replace(u'-',u'\u2212'))
-            labto.append(unicode(y).replace(u'-',u'\u2212')+unicode(r'$\times 10^{'+str(n)+r'}$'))
-	else:
-            y=round(y,2)
-            labto.append(unicode(y).replace(u'-',u'\u2212'))
-    else:
-        ii-=1
-        labto.append(x)
-ax2.set_zticklabels(labto)
-til3=ax2.zaxis.get_major_ticks()
-for j in range(0,len(til3),1):
-    til3[j].label1.set_visible(False)
-til3[ii-1].label1.set_visible(True)
-til3[0].label1.set_visible(True)
-
-#if abs(n)>2:
-#    ax2.set_zlabel(''+r'$'+vl[showp3[0]]+str(n3[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})    
-#else:
-ax2.set_zlabel(''+r'$'+vl[showp3[0]]+str(n3[0]+1)+r'}$',fontdict={'size':18})
+    #if abs(n)>2:
+    #    axs.set_zlabel(''+r'$'+vl[showp3[0]]+str(n3[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})    
+    #else:
+    axs.set_zlabel(''+r'$'+vl[showp3[0]]+str(n3[0]+1)+r'}$',fontdict={'size':18})
 
 
-# ticks alignement
+    # ticks alignement
 
-[t.set_va('center') for t in ax2.get_yticklabels()]
-[t.set_ha('left') for t in ax2.get_yticklabels()]
-[t.set_va('center') for t in ax2.get_xticklabels()]
-[t.set_ha('right') for t in ax2.get_xticklabels()]
-[t.set_va('center') for t in ax2.get_zticklabels()]
-[t.set_ha('left') for t in ax2.get_zticklabels()]
+    [t.set_va('center') for t in axs.get_yticklabels()]
+    [t.set_ha('left') for t in axs.get_yticklabels()]
+    [t.set_va('center') for t in axs.get_xticklabels()]
+    [t.set_ha('right') for t in axs.get_xticklabels()]
+    [t.set_va('center') for t in axs.get_zticklabels()]
+    [t.set_ha('left') for t in axs.get_zticklabels()]
 
 # Other views labels
 #--------------------
@@ -1176,150 +1209,153 @@ ax6.set_ylabel('$y^\prime$')
 
 # Setting the limit of the infoview
 #-------------------------------------------------------
-if Isel=="diff":
-    ax1.set_xlim(0.,sete[0][4][0,ste-1]-sete[0][4][0,sti])
-    if ifsmin>0.:
-        ax1.set_ylim(0.9*ifsmin,1.4*ifsmax)
-    else:
-        ax1.set_ylim(1.1*ifsmin,1.4*ifsmax)
-    if dim:
-        ax1.set_xlabel('time (years)')
-    else:
-        ax1.set_xlabel('time (timeunits)')
-if Isel=="yprof":
-    ax1.set_xlim(Y[0,0],Y[-1,0])
-    if ifsmin>0.:
-        ax1.set_ylim(0.9*ifsmin,1.4*ifsmax)
-    else:
-        ax1.set_ylim(1.1*ifsmin,1.4*ifsmax)
-    ax1.set_xlabel(r'$y^\prime$')
-if Isel=="xprof":
-    ax1.set_xlim(X[0,0],X[0,-1])
-    if ifsmin>0.:
-        ax1.set_ylim(0.9*ifsmin,1.4*ifsmax)
-    else:
-        ax1.set_ylim(1.1*ifsmin,1.4*ifsmax)
-    ax1.set_xlabel(r'$x^\prime$')
-if Isel=="mode":
-    ax1.set_zlim(0.,ifsmax+10)
-
+i=0
+for x in Isel:
+    axs=axm[i]
+    if x=="diff":
+        axs.set_xlim(0.,sete[0][4][0,ste-1]-sete[0][4][0,sti])
+        if ifsmin>0.:
+            axs.set_ylim(0.9*ifsmin[i],1.4*ifsmax[i])
+        else:
+            axs.set_ylim(1.1*ifsmin[i],1.4*ifsmax[i])
+        if dim:
+            axs.set_xlabel('time (years)')
+        else:
+            axs.set_xlabel('time (timeunits)')
+    if x=="yprof":
+        axs.set_xlim(Y[0,0],Y[-1,0])
+        if ifsmin>0.:
+            axs.set_ylim(0.9*ifsmin[i],1.4*ifsmax[i])
+        else:
+            axs.set_ylim(1.1*ifsmin[i],1.4*ifsmax[i])
+        axs.set_xlabel(r'$y^\prime$')
+    if x=="xprof":
+        axs.set_xlim(X[0,0],X[0,-1])
+        if ifsmin>0.:
+            axs.set_ylim(0.9*ifsmin[i],1.4*ifsmax[i])
+        else:
+            axs.set_ylim(1.1*ifsmin[i],1.4*ifsmax[i])
+        axs.set_xlabel(r'$x^\prime$')
+    if x=="mode":
+        axs.set_zlim(0.,ifsmax[i]+10)
+    i+=1
 
 #------------------------------
 # Initialization of the animation
 #------------------------------
 
 # Infoview plot
+ii=0
+xrlines=[[],[]]
+xralines=[[],[]]
+pa=[None,None]
+pk=[None,None]
+pl=[None,None]
+for x in Isel:
+    axs=axm[ii]
+    if x=="diff":
+        for i in range(len(diff[ii])):
+            xrlines[ii].append(None)
+        for i in range(len(diff)):
+            xrlines[ii][i],=axs.plot([],[],label=difflab[ii][i])
+        axs.legend(fontsize=12)
+    if x=="yprof":
+        for i in range(len(prof[ii])):
+            xrlines[ii].append(None)
+        for i in range(len(prof[ii])):
+            xrlines[ii][i],=axs.plot([],[],label=proflab[ii][i])
+        for i in range(len(prof[ii])):
+            xrlines[ii][i].set_xdata(Y[:,0])
 
-if Isel=="diff":
-    xrlines=[]
-    for i in range(len(diff)):
-        xrlines.append(None)
-    for i in range(len(diff)):
-        xrlines[i],=ax1.plot([],[],label=difflab[i])
-    ax1.legend(fontsize=12)
-if Isel=="yprof":
-    xrlines=[]
-    for i in range(len(prof)):
-        xrlines.append(None)
-    for i in range(len(prof)):
-        xrlines[i],=ax1.plot([],[],label=proflab[i])
-    for i in range(len(prof)):
-        xrlines[i].set_xdata(Y[:,0])
+        for i in range(len(profave[ii])):
+            xralines[ii].append(None)
+        for i in range(len(profave[ii])):
+            xralines[ii][i],=axs.plot([],[],color=xrlines[ii][i].get_color(),ls=':')
+        for i in range(len(profave[ii])):
+            xralines[ii][i].set_xdata(Y[:,0])
+        axs.plot([],[],color='k',ls=':',label='Time ave.')
+        axs.legend(fontsize=12)
+    if x=="xprof":
+        for i in range(len(prof2[ii])):
+            xrlines[ii].append(None)
+        for i in range(len(prof2[ii])):
+            xrlines[ii][i],=axs.plot([],[],label=prof2lab[ii][i])
+        for i in range(len(prof2[ii])):
+            xrlines[ii][i].set_xdata(X[0,:])
 
-    xralines=[]
-    for i in range(len(profave)):
-        xralines.append(None)
-    for i in range(len(profave)):
-        xralines[i],=ax1.plot([],[],color=xrlines[i].get_color(),ls=':')
-    for i in range(len(profave)):
-        xralines[i].set_xdata(Y[:,0])
-    ax1.plot([],[],color='k',ls=':',label='Time ave.')
+        for i in range(len(prof2ave[ii])):
+            xralines[ii].append(None)
+        for i in range(len(prof2ave[ii])):
+            xralines[ii][i],=axs.plot([],[],color=xrlines[ii][i].get_color(),ls=':')
+        for i in range(len(prof2ave[ii])):
+            xralines[ii][i].set_xdata(X[0,:])
+        axs.plot([],[],color='k',ls=':',label='Time ave.')
+        axs.legend(fontsize=12)
+    if x=='mode':
+         if 'a' in IIsel[ii][0]:
+             axs.set_xlabel('\n\n'+r'$M,\, H$',fontdict={'size':12})
+             axs.set_ylabel('\n\n'+r'$P$',fontdict={'size':12})
+             lnx=np.arange(ss[0]+1)-1.25
+             lny=ny+0.25
+             nxl=[' nd']+map(str,range(1,ss[0]+1))
+             nyl=map(str,range(1,ss[1]+1))
 
-    ax1.legend(fontsize=12)
-if Isel=="xprof":
-    xrlines=[]
-    for i in range(len(prof2)):
-        xrlines.append(None)
-    for i in range(len(prof2)):
-        xrlines[i],=ax1.plot([],[],label=prof2lab[i])
-    for i in range(len(prof2)):
-        xrlines[i].set_xdata(X[0,:])
+             dx=np.ones_like(z0)*0.3
+             dy=dx.copy()
+             pk[ii]=axs.bar3d(NXk,NYk,z0,dx,dy,z0+1.e-10,color='b',zsort='max',alpha=0.4,linewidth=0,edgecolor="none")
+             pl[ii]=axs.bar3d(NXl,NYl,z0,dx,dy,z0+1.e-10,color='r',zsort='max',alpha=0.6,linewidth=0,edgecolor="none")
+             pa[ii]=axs.bar3d(NXa,NYa,z0,dx,dy,z0+1.e-10,color='c',zsort='average',alpha=0.95,linewidth=0,edgecolor="none")
+         else:
+             axs.set_xlabel('\n\n'+r'$H_{\rm{o}}$',fontdict={'size':12})
+             axs.set_ylabel('\n\n'+r'$P_{\rm{o}}$',fontdict={'size':12})
+             lnx=nx+0.75
+             lny=ny+0.75
+             nxl=map(str,range(1,ss[0]+1))
+             nyl=map(str,range(1,ss[1]+1))
 
-    xralines=[]
-    for i in range(len(prof2ave)):
-        xralines.append(None)
-    for i in range(len(prof2ave)):
-        xralines[i],=ax1.plot([],[],color=xrlines[i].get_color(),ls=':')
-    for i in range(len(prof2ave)):
-        xralines[i].set_xdata(X[0,:])
-    ax1.plot([],[],color='k',ls=':',label='Time ave.')
-    ax1.legend(fontsize=12)
-if Isel=='mode':
-     if 'a' in IIsel[0]:
-         ax1.set_xlabel('\n\n'+r'$M,\, H$',fontdict={'size':12})
-         ax1.set_ylabel('\n\n'+r'$P$',fontdict={'size':12})
-         lnx=np.arange(ss[0]+1)-1.25
-         lny=ny+0.25
-         nxl=[' nd']+map(str,range(1,ss[0]+1))
-         nyl=map(str,range(1,ss[1]+1))
-         
-         dx=np.ones_like(z0)*0.3
-         dy=dx.copy()
-         pk=ax1.bar3d(NXk,NYk,z0,dx,dy,z0+1.e-10,color='b',zsort='max',alpha=0.4,linewidth=0,edgecolor="none")
-         pl=ax1.bar3d(NXl,NYl,z0,dx,dy,z0+1.e-10,color='r',zsort='max',alpha=0.6,linewidth=0,edgecolor="none")
-         pa=ax1.bar3d(NXa,NYa,z0,dx,dy,z0+1.e-10,color='c',zsort='average',alpha=0.95,linewidth=0,edgecolor="none")
-     else:
-         ax1.set_xlabel('\n\n'+r'$H_{\rm{o}}$',fontdict={'size':12})
-         ax1.set_ylabel('\n\n'+r'$P_{\rm{o}}$',fontdict={'size':12})
-         lnx=nx+0.75
-         lny=ny+0.75
-         nxl=map(str,range(1,ss[0]+1))
-         nyl=map(str,range(1,ss[1]+1))
+             dx=np.ones_like(z0)*0.8
+             dy=dx.copy()
 
-         dx=np.ones_like(z0)*0.8
-         dy=dx.copy()
+             pl[ii]=axs.bar3d(NXl,NYl,z0,dx,dy,z0+1.e-10,color='b',zsort='max',alpha=0.7,linewidth=0,edgecolor="none")
+         axs.set_xticks(lnx)
+         axs.set_xticklabels(nxl)
+         axs.set_yticks(lny)
+         axs.set_yticklabels(nyl)
+         axs.tick_params(axis='both',labelsize=10)
+         if 'a' in IIsel[ii][0]:
+             axl=fig.add_axes([0.12,0.77-ii*0.45,0.085,0.075],projection='3d')
+             axl.set_axis_off()
+             axl.view_init(elev=12,azim=98)
 
-         pl=ax1.bar3d(NXl,NYl,z0,dx,dy,z0+1.e-10,color='b',zsort='max',alpha=0.7,linewidth=0,edgecolor="none")
-         pk=None
-         pa=None
-     ax1.set_xticks(lnx)
-     ax1.set_xticklabels(nxl)
-     ax1.set_yticks(lny)
-     ax1.set_yticklabels(nyl)
-     ax1.tick_params(axis='both',labelsize=10)
-     if 'a' in IIsel[0]:
-        axl=fig.add_axes([0.12,0.77,0.085,0.075],projection='3d')
-        axl.set_axis_off()
-        axl.view_init(elev=12,azim=98)
+             axl.bar3d(1., 0.5, .75,  1., 0.5, 2., color='r',alpha=0.6,linewidth=0,edgecolor="none")
+             axl.bar3d(1., 0.5, 6.5,  1., 0.5, 2., color='b',alpha=0.4,linewidth=0,edgecolor="none")
+             axl.bar3d(1., 0.5, 12.,  1., 0.5, 2., color='c',alpha=0.95,linewidth=0,edgecolor="none")
 
-        axl.bar3d(1., 0.5, .75,  1., 0.5, 2., color='r',alpha=0.6,linewidth=0,edgecolor="none")
-        axl.bar3d(1., 0.5, 6.5,  1., 0.5, 2., color='b',alpha=0.4,linewidth=0,edgecolor="none")
-        axl.bar3d(1., 0.5, 12.,  1., 0.5, 2., color='c',alpha=0.95,linewidth=0,edgecolor="none")
-
-        axl.set_ylim(0.,1.0)
-        axl.set_xlim(-1.,2.)
-        axl.set_zlim(0.,12.5)
+             axl.set_ylim(0.,1.0)
+             axl.set_xlim(-1.,2.)
+             axl.set_zlim(0.,12.5)
 
 
-        axl.text(0.25,0.6,-.1,'L type',fontdict={'size':12})
-        axl.text(0.5,0.,4.4,'K type',fontdict={'size':12})
-        axl.text(0.5,0.,10.5,'A type',fontdict={'size':12})
+             axl.text(0.25,0.6,-.1,'L type',fontdict={'size':12})
+             axl.text(0.5,0.,4.4,'K type',fontdict={'size':12})
+             axl.text(0.5,0.,10.5,'A type',fontdict={'size':12})
 
-        axb = fig.add_axes([0.12,0.77,0.085,0.075])
-        axb.xaxis.set_visible(False)
-        axb.yaxis.set_visible(False)
-        axb.set_zorder(1000)
-        # axb.patch.set_alpha(0.)
-        axb.patch.set_fill(False)
-        axb.patch.set_color('k')
-
+             axb = fig.add_axes([0.12,0.77-ii*0.45,0.085,0.075])
+             axb.xaxis.set_visible(False)
+             axb.yaxis.set_visible(False)
+             axb.set_zorder(1000)
+             # axb.patch.set_alpha(0.)
+             axb.patch.set_fill(False)
+             axb.patch.set_color('k')
+    ii+=1
 
 
 # Attractor plot
-
-x=sete[0]
-ax2.plot(x[sd[showp[0]]][n1[0],::ival],x[sd[showp2[0]]][n2[0],::ival],zs=x[sd[showp3[0]]][n3[0],::ival],marker=ms[0],linestyle=ls[0])#,label=fl[i])
-xpoint,=ax2.plot([],[],zs=[],marker=',',linestyle='',color='r')#,label=fl[i])
+if "3D" in Isel:
+    axs=axm[Isel.index('3D')]
+    x=sete[0]
+    axs.plot(x[sd[showp[0]]][n1[0],::ival],x[sd[showp2[0]]][n2[0],::ival],zs=x[sd[showp3[0]]][n3[0],::ival],marker=ms[0],linestyle=ls[0])#,label=fl[i])
+    xpoint,=axs.plot([],[],zs=[],marker=',',linestyle='',color='r')#,label=fl[i])
 
 # Spatial plots
 
@@ -1364,36 +1400,40 @@ ax6.yaxis.set_major_locator(ticker.MultipleLocator(1.0))
 # Defining the animation update function
 
 def animate(i):
-    if i==1:
+    if i==1 and "3D" in Isel:
         xpoint.set_marker('o')
     if np.mod(i,100)==0:
         print i
 
     l=i*ival
-    x=sete[0]  #update of the attractor plot locator
-    xpoint.set_data(x[sd[showp[0]]][n1[0],l:l+1],x[sd[showp2[0]]][n2[0],l:l+1])
-    xpoint.set_3d_properties(x[sd[showp3[0]]][n3[0],l:l+1])
+    if "3D" in Isel:
+        x=sete[0]  #update of the attractor plot locator
+        xpoint.set_data(x[sd[showp[0]]][n1[0],l:l+1],x[sd[showp2[0]]][n2[0],l:l+1])
+        xpoint.set_3d_properties(x[sd[showp3[0]]][n3[0],l:l+1])
     
     # Update of the info view
-    if Isel=='diff':
-        for j in range(len(diff)):
-            xrlines[j].set_xdata(x[4][0,:l+1:ival])
-            xrlines[j].set_ydata(diff[j][:l+1:ival])
-    if Isel=='yprof':
-        for j in range(len(prof)):
-            xrlines[j].set_ydata(prof[j][l])
-            xralines[j].set_ydata(profave[j][l])
-    if Isel=='xprof':
-        for j in range(len(prof2)):
-            xrlines[j].set_ydata(prof2[j][l])
-            xralines[j].set_ydata(prof2ave[j][l])
-    if Isel=='mode':
-        if pk:
-            update_Poly3D(pk,NXk,NYk,z0,dx,dy,zk[l])
-        if pl:
-            update_Poly3D(pl,NXl,NYl,z0,dx,dy,zl[l])
-        if pa:
-            update_Poly3D(pa,NXa,NYa,z0,dx,dy,za[l])
+    ii=0
+    for x in Isel:
+        if x=='diff':
+            for j in range(len(diff[ii])):
+                xrlines[ii][j].set_xdata(x[4][0,:l+1:ival])
+                xrlines[ii][j].set_ydata(diff[ii][j][:l+1:ival])
+        if x=='yprof':
+            for j in range(len(prof[ii])):
+                xrlines[ii][j].set_ydata(prof[ii][j][l])
+                xralines[ii][j].set_ydata(profave[ii][j][l])
+        if x=='xprof':
+            for j in range(len(prof2[ii])):
+                xrlines[ii][j].set_ydata(prof2[ii][j][l])
+                xralines[ii][j].set_ydata(prof2ave[ii][j][l])
+        if x=='mode':
+            if pk[ii]:
+                update_Poly3D(pk[ii],NXk,NYk,z0,dx,dy,zk[l])
+            if pl[ii]:
+                update_Poly3D(pl[ii],NXl,NYl,z0,dx,dy,zl[l])
+            if pa[ii]:
+                update_Poly3D(pa[ii],NXa,NYa,z0,dx,dy,za[l])
+        ii+=1
     
 
     # Actualising the fields plot
@@ -1409,12 +1449,20 @@ def animate(i):
     im0.set_data(Z[2][l])
     cl0.on_mappable_changed(im0)
 
-    if Isel=="diff":
-        return xrlines,xpoint,im0,im1,im2,im3#,xilines
-    elif 'prof' in Isel:
-        return xrlines,xralines,xpoint,im0,im1,im2,im3#,xilines
-    elif Isel=='mode':
-        return pa,pk,pl,xpoint,im0,im1,im2,im3#,xilines
+    r=[im0,im1,im2,im3]
+    if '3D' in Isel:
+        r.insert(0,xpoint)
+    if 'xprof' in Isel or 'yprof' in Isel:
+        r.insert(0,xralines)
+    if 'diff'in Isel or 'xprof' in Isel or 'yprof' in Isel:
+        r.insert(0,xrlines)
+    if 'mode' in Isel:
+        r.insert(0,pl)
+        r.insert(0,pk)
+        r.insert(0,pa)
+    
+    return r
+
 
 # Computing the animation
 
