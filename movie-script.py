@@ -9,25 +9,24 @@
 
 # This code needs: 
 # - mencoder
-# - matplotlib >= 1.3 
+# - matplotlib >= 1.5
 # - numpy
 
 # TODO : - Move the parameters at the beginning of the code
-#        - Generate frame on the "fly"
+#        - Generate frames on the "fly"
 
 # Loading of the libraries
 
 import numpy as np
-#import scipy as scp
 import matplotlib
 # matplotlib.use('Agg')
-matplotlib.verbose.set_level('debug')
 import matplotlib.cm as cm
 import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
-print plt.get_backend()
+# print plt.get_backend()
 import matplotlib.animation as anim
 from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from matplotlib import rc
 rc('font',**{'family':'serif','sans-serif':['Times'],'size':14})
 
@@ -37,25 +36,177 @@ from email.MIMEMultipart import MIMEMultipart
 from email.MIMEText import MIMEText
 import gzip
 import sys
+import subprocess
+
+#---------------------------------------------
+# Parameter section
+#---------------------------------------------
+
+# Organization of the figures layout
+#-----------------------------------
+
+# -----------------------------------
+# |  info1   |   2      |      4    |
+# -----------------------------------
+# |  info2   |   1      |      3    |
+# -----------------------------------
+# info1-2 : information views
+# 1--4 : spatial fields representations
+
+# Selection of the spatial fields
+#-----------------------------------
+
+# Zsel : List holding the displayed fields in the order of the layout
+# 
+# Available labels:   - at : atmospheric temperature at 500 mb
+#                     - ap : atmospheric pressure at 500 mb
+#                     - ot : oceanic temperature
+#                     - op : oceanic streamfunction
+#                     - p3 : atmospheric lower layer streamfunction psi^3
+#                     - p1 : atmospheric upper layer streamfunction psi^1
+#                     - ap3 : atmospheric pressure at 750 mb
+#                     - ap1 : atmospheric pressure at 250 mb
+#                     - dt : ocean-atmosphere temperature difference
+#                     - ua : atmospheric U wind component at 500 mb
+#                     - va : atmospheric V wind component at 500 mb
+#                     - uo : oceanic U current component
+#                     - vo : oceanic V current component
+#                     - ua1: atmospheric upper U wind component
+#                     - va1: atmospheric upper V wind component
+#                     - ua3: atmospheric lower U wind component
+#                     - va3: atmospheric lower V wind component
+
+
+Zsel=['ap','ua','op','uo']
+
+# Selection of the 1-2 infoviews modes:
+#---------------------------------
+
+Isel=["diff","3D"] # first relates to info1, second to info2
+
+#Isel components can be : - diff : Difference plot of various quantities (i.e. geopot. height diff.)
+#                         - yprof : Profile of various quantities along the spatial direction y
+#                         - xprof : Profile of various quantities along the spatial direction x
+#                         - mode : Instaneous spectral modes contents
+#                         - 3D : 3D projection of the attractor, with locator (warning: both 
+#                                infoviews cannot be simultaneously in 3D mode)
+
+IIsel=[['geo'],[]]
+
+# IIsel : List holding the content to be shown in the infoviews
+#         Again, first list relates to info1, second to info2
+#
+# Available content:
+#     For the "diff" mode:
+#               - geo : Time evolution of the North-South geopotential height difference at 500mb 
+#               - sp(n): Difference between n-th displayed spatial field maximum and minimum
+#     For the "yprof" mode:
+#               - sp(n): Profile of the (n)-th displayed spatial field in the y spatial direction 
+#                         and at the middle of domain
+#               - spa(n): Profile of the (n)-th displayed spatial field in the y spatial direction
+#                         and averaged in the x direction
+#     For the "xprof" mode:
+#               - sp(n): Profile of the (n)-th displayed spatial field in the x spatial direction 
+#                         and at the middle of domain
+#               - spa(n): Profile of the (n)-th displayed spatial field in the x spatial direction
+#                         and averaged in the y direction
+#     For the "mode" mode, only one of the following:
+#               - op: Ocean streamfunction modes
+#               - ot: Ocean temperature modes
+#               - ap: Atmosphere streamfunction modes
+#               - at: Atmosphere temperature modes
+
+
+# Mailserver configuration
+#--------------------------
 
 # Defining mail address from where and to which send mails
 
 fromaddr = ""
 toaddr = ""
 
+# Server to contact
+servername='localhost'
+
+# Setting of some general model parameters (those in general do not change)
+#--------------------------------------------------------------------------
+nr=1.5
+al=0.
+f0=0.0001032
+L=5000000./np.pi
+rpr=L**2*f0
+RR=287.
+RK=rpr*f0/RR
+at=365.25
+ct=(1/(f0*24*3600))/at 
+geo=f0/9.81
+
+
+#--------------------------
+# Preparation
+#--------------------------
+
+# Asking for adimensionalization
+
+dim=raw_input('Adimensionalize? (y/N)')
+if dim in ['y','Y']:
+    dim=False
+else:
+    dim=True
+
+# Defining and ordering labels
+#-----------------------------
+
+Zlabel={'at':r"Atm. Temperature $\theta_a$",'ot':r'Ocean Temperature $\theta_o$','dt':'Oc.-Atm. Temperature diff.','ap':r'Atmospheric $\psi_a$','op':r'Ocean $\psi_o$','p3':r'Atm. low. layer $\psi_a^3$','p1':r'Atm. up. layer $\psi_a^1$','uo':'Ocean U current','vo':'Ocean V current','ua':'Atm. 500mb U wind','va':'Atm. 500mb V wind','ua3':'Atm. 750mb U wind','va3':'Atm. 750mb V wind','ua1':'Atm. 250mb U wind','va1':'Atm. 250mb V wind','ap3':r'Atm. low. layer $\psi_a^3$','ap1':r'Atm. up. layer $\psi_a^1$'}
+
+strm=r" (m$^2$s$^{-1}$)"
+strg=" (m)"
+strt=r"($^\circ\!$C)"
+strw=r" (ms$^{-1}$)"
+
+Zlabelunit={'at':strt,'ot':strt,'dt':"years",'ap':strg,'op':strm,'p3':strm,'p1':strm,'ua':strw,'va':strw,'uo':strw,'vo':strw,'ua3':strw,'va3':strw,'ua1':strw,'va1':strw,'ap3':strg,'ap1':strg}
+
+Zlabelmini={'at':"Atm. T$^\circ$)",'ot':'Oc. T$^\circ$)','dt':'Oc.-Atm. T$^\circ$ diff.','ap':r'Atm. $\psi_a$','op':r'Oc. $\psi_o$','p3':r'Atm. $\psi_a^3$','p1':r'Atm. $\psi_a^1$','ua':'Atm. U wind','va':'Atm. V wind','uo':'Ocean U current','vo':'Ocean V current','ua3':'Atm. low. U wind','va3':'Atm. low. V wind','ua1':'Atm. up. U wind','va1':'Atm. up. V wind','ap3':r'Atm. $\psi_a^3$','ap1':r'Atm. $\psi_a^1$'}
+
+Zlab=[]
+Zlabmini=[]
+for x in Zsel:
+    Zlab.append(Zlabel[x])
+    if dim:
+        Zlab[-1]+=Zlabelunit[x]
+    Zlabmini.append(Zlabelmini[x])
+
+#Defining some labels to be used later
+sdd={'ap':'psi','at':'theta','op':'A','ot':'T'}
+sd={'psi':0,'theta':1,'A':2,'T':3,'time':4}
+vl={'psi':r'\psi_{a,','theta':r'\theta_{a,','A':r'\psi_{o,','T':r'\theta_{o,','time':r't'}
+
+# Defining the dico of the dimensionalization
+if dim:
+    dimd={'geo':geo,'strfunc':rpr,'temp':RK,'timey':ct,'times':1/f0,'length':L}
+else:
+    dimd={'geo':1,'strfunc':1,'temp':1,'timey':1,'times':1,'length':1}
+
+# Defining the dico of the variables dimensionalization    
+dimdv={'psi':dimd['strfunc']*dimd['geo'],'theta':2*dimd['temp'],'A':dimd['strfunc'],'T':dimd['temp'],'time':dimd['timey']}
+
+# Infoview labels
+
+Ivtit={'diff':"Differences plot",'yprof':"Meridional profile",'xprof':"Zonal profile","mode":r"% Modes distribution","3D":'3-D phase space projection'}
+
+
 # Utility functions
+#------------------
 
 #Count the number of line of a file
 def linecount(filename):
-    lines = 0
     if filename[-3:]=='.gz':
+        lines = 0
         with gzip.open(filename, "r+") as f:
             for x in f:
                 lines += 1
     else:
-        with open(filename, "r+") as f:
-            for x in f:
-                lines += 1
+        lines=int(subprocess.Popen("cat "+filename+" | wc -l", shell=True, stdout=subprocess.PIPE).stdout.read())
     return lines
 
 # Gives the order of a number
@@ -80,7 +231,51 @@ def fmt(x, pos):
     else:
         return unicode(r'{}$\times 10^{{{}}}$'.format(a, b))
 
-# Load the geometries given as arguments or by the users
+strf=ticker.FuncFormatter(fmt)
+
+if dim:
+    Zformat={'at':None,'ot':None,'dt':None,'ap':None,'op':strf,'p3':strf,'p1':strf,'ua':None,'va':None,'uo':None,'vo':None,'ua3':None,'va3':None,'ua1':None,'va1':None,'ap3':None,'ap1':None}
+else:
+    Zformat={'at':None,'ot':None,'dt':None,'ap':None,'op':None,'p3':None,'p1':None,'ua':None,'va':None,'uo':None,'vo':None,'ua3':None,'va3':None,'ua1':None,'va1':None,'ap3':None,'ap1':None}
+
+Zcm={'at':cm.coolwarm,'ot':cm.coolwarm,'dt':cm.coolwarm,'ap':cm.gist_rainbow_r,'op':cm.gist_rainbow_r,'p3':cm.jet,'p1':cm.jet,'ua':cm.hsv_r,'va':cm.hsv_r,'uo':cm.hsv_r,'vo':cm.hsv_r,'ua3':cm.hsv_r,'va3':cm.hsv_r,'ua1':cm.hsv_r,'va1':cm.hsv_r,'ap3':cm.jet,'ap1':cm.jet}
+
+# Update function for the bar3D plot
+
+def update_Poly3D(p, x, y, z, dx, dy, dz):
+    minx, miny, minz = 1e20, 1e20, 1e20
+    maxx, maxy, maxz = -1e20, -1e20, -1e20
+
+    polys = []
+    for xi, yi, zi, dxi, dyi, dzi in zip(x, y, z, dx, dy, dz):
+        minx = min(xi, minx)
+        maxx = max(xi + dxi, maxx)
+        miny = min(yi, miny)
+        maxy = max(yi + dyi, maxy)
+        minz = min(zi, minz)
+        maxz = max(zi + dzi, maxz)
+
+        polys.extend([
+            ((xi, yi, zi), (xi + dxi, yi, zi),
+                (xi + dxi, yi + dyi, zi), (xi, yi + dyi, zi)),
+            ((xi, yi, zi + dzi), (xi + dxi, yi, zi + dzi),
+                (xi + dxi, yi + dyi, zi + dzi), (xi, yi + dyi, zi + dzi)),
+
+            ((xi, yi, zi), (xi + dxi, yi, zi),
+                (xi + dxi, yi, zi + dzi), (xi, yi, zi + dzi)),
+            ((xi, yi + dyi, zi), (xi + dxi, yi + dyi, zi),
+                (xi + dxi, yi + dyi, zi + dzi), (xi, yi + dyi, zi + dzi)),
+
+            ((xi, yi, zi), (xi, yi + dyi, zi),
+                (xi, yi + dyi, zi + dzi), (xi, yi, zi + dzi)),
+            ((xi + dxi, yi, zi), (xi + dxi, yi + dyi, zi),
+                (xi + dxi, yi + dyi, zi + dzi), (xi + dxi, yi, zi + dzi)),
+        ])
+    p.set_verts(polys)
+ 
+
+# Loading the geometries given as arguments or by the users
+#-----------------------------------------------------------
 
 if len(sys.argv)==4:
     ageom=sys.argv[2][:]
@@ -114,20 +309,20 @@ ii=0
 for w in ams:
     if w[0]==1:
         ii+=1
-        x={'typ':'A','Nx':0,'Ny':w[1]}
+        x={'typ':'A','Nx':0,'Ny':w[1],'Nxi':0,'Nyi':w[1]}
         aftable[ii]=x
         ii+=1
-        x={'typ':'K','Nx':w[0],'Ny':w[1]}
+        x={'typ':'K','Nx':w[0],'Ny':w[1],'Nxi':w[0],'Nyi':w[1]}
         aftable[ii]=x
         ii+=1
-        x={'typ':'L','Nx':w[0],'Ny':w[1]}
+        x={'typ':'L','Nx':w[0],'Ny':w[1],'Nxi':w[0],'Nyi':w[1]}
         aftable[ii]=x
     else:
         ii+=1
-        x={'typ':'K','Nx':w[0],'Ny':w[1]}
+        x={'typ':'K','Nx':w[0],'Ny':w[1],'Nxi':w[0],'Nyi':w[1]}
         aftable[ii]=x
         ii+=1
-        x={'typ':'L','Nx':w[0],'Ny':w[1]}
+        x={'typ':'L','Nx':w[0],'Ny':w[1],'Nxi':w[0],'Nyi':w[1]}
         aftable[ii]=x
 
 
@@ -135,29 +330,12 @@ oftable={}
 ii=0
 for w in oms:
     ii+=1
-    x={'Nx':w[0]/2.,'Ny':w[1]}
+    x={'typ':'L','Nx':w[0]/2.,'Ny':w[1],'Nxi':w[0],'Nyi':w[1]}
     oftable[ii]=x
-
-# Setting of some general model parameters (those in general do not change)
-nr=1.5
-al=0.
-f0=0.0001032
-L=5000000./np.pi
-rpr=L**2*f0
-RR=287.
-RK=rpr*f0/RR
-dim=True
-at=365.25
-ct=(1/(f0*24*3600))/at 
-geo=f0/9.81
-
-#Defining some dico to be used later
-sd={'psi':0,'theta':1,'A':2,'T':3,'time':4}
-vl={'psi':r'\psi_{a,','theta':r'\theta_{a,','A':r'\psi_{o,','T':r'\theta_{o,','time':r't'}
-dimd={'psi':rpr*geo,'theta':2*RK,'A':rpr,'T':RK,'time':ct}
 
 
 # Defining the basis functions and their partial derivatives
+#------------------------------------------------------------
 
 # For the atmosphere
 def Fi(i,x,y):
@@ -206,15 +384,16 @@ def dxphi(i,x,y): # in x
     w=oftable[i]
     Nx=w['Nx']
     Ny=w['Ny']
-    return 2*nr*Nx*np.cos(nr*Nx*x)*np.sin(Ny*y)/L #2*np.exp(-al*x)*np.sin(nr*Nx*x)*np.sin(Ny*y)
+    return 2*nr*Nx*np.cos(nr*Nx*x)*np.sin(Ny*y) #2*np.exp(-al*x)*np.sin(nr*Nx*x)*np.sin(Ny*y)
 
 def dyphi(i,x,y):
     w=oftable[i]
     Nx=w['Nx']
     Ny=w['Ny']
-    return 2*Ny*np.sin(nr*Nx*x)*np.cos(Ny*y)/L #2*np.exp(-al*x)*np.sin(nr*Nx*x)*np.sin(Ny*y)
+    return 2*Ny*np.sin(nr*Nx*x)*np.cos(Ny*y) #2*np.exp(-al*x)*np.sin(nr*Nx*x)*np.sin(Ny*y)
 
-# Function returning the (vector) fields based on the coefficients
+# Function returning the fields based on the coefficients
+# ---------------------------------------------------------
 
 # For the atmospheric streamfunction
 def astream(x,y,pt):
@@ -247,7 +426,7 @@ def ostream_cons(x,y,a):
         Z+=a[i]*phi(i+1,x,y)-a[i]*Ci(i+1)
     return Z
 
-# Oceanic non-conserved fields (used to compute the temperature field)
+# Oceanic non-conserved fields (used to compute the temperature fields)
 def ostream(x,y,a):
     Z=a[0]*phi(1,x,y)
     for i in range(1,omod):
@@ -281,11 +460,19 @@ else:
     print "No data filename specified as argument."
     s=raw_input('Filename of the data ?')
 
+
+#-----------------------------------------
+# Loading the data
+#-----------------------------------------
+
+# Opening files and determing data range
+#-----------------------------------------
+
 # Possible legend for the data (not used in general)
 #leg=raw_input('Legende?')
 leg=''
 sl=[s] # Nom du fichier de donnee
-fl=[leg]#,'averaged','determinist'] # Legende
+fl=[leg] # Legende
 nlf=linecount(s) # Counting the number of line of data
 
 # Opening the file
@@ -308,8 +495,8 @@ x2=f.readline()
 
 f.close()
 
-x1=ct*float(x1.split()[0])
-x2=ct*float(x2.split()[0])
+x1=dimd['timey']*float(x1.split()[0])
+x2=dimd['timey']*float(x2.split()[0])
 
 # Asking the user from which line to which line he want to read
 # providing a gross (experimental) estimation of what it will take in the memory
@@ -318,9 +505,9 @@ print 'There is '+str(nlf)+' lines of data in the file'
 print 'representing '+str(nlf*(ndim+1)*8/1.e6)+' Mbytes ('+str(nlf*(ndim+1)*8/1.e9)+' GB)'
 print 'and '+str((x2-x1)*nlf)+' years of data.'
 while True:
-    sti='' #raw_input('Where do you want to start reading ? (default=first)')
-    ste='2000000' #raw_input('And where do you want to stop ? (default=last)')
-    itr='' #raw_input('What interval should we use to read lines ? (default=1)')
+    sti=raw_input('Where do you want to start reading ? (default=first)')
+    ste=raw_input('And where do you want to stop ? (default=last)')
+    itr=raw_input('What interval should we use to read lines ? (default=1)')
     if not sti:
         sti=0
     else:
@@ -333,17 +520,17 @@ while True:
         itr=1
     else:
         itr=int(itr)
-    print 'It will represent '+str((ste-sti)*(ndim+1)*8*8/1.e6/itr)+' Mbytes of data in the memory. ('+str((ste-sti)*(ndim+1)*8*8/1.e9/itr)+' GB)'
+    print 'It will represent '+str((ste-sti)*(ndim+1)*8/1.e6/itr)+' Mbytes of data in the memory. ('+str((ste-sti)*(ndim+1)*8/1.e9/itr)+' GB)'
     print 'and '+str((x2-x1)*(ste-sti))+' years of data.'
-    x='y'  #raw_input('Do you agree with this ? (y/n)')
-    if x=='y':
+    x=raw_input('Do you agree with this ? (y/N)')
+    if x in ['y','Y']:
         break
     else:
         print 'No? Ok...'
 
-
-
 # Defining the variables that will be shown in the "attractor" view
+#-------------------------------------------------------------------
+
 ls=[]
 ms=[]
 showp=[]
@@ -387,6 +574,8 @@ for i in range(len(sl)):
 
     
 # Retrieving the data from the files
+#---------------------------------------
+
 sete=[]
 for j in range(len(evol)):
     e=evol[j]
@@ -427,243 +616,42 @@ for j in range(len(evol)):
     tu=np.array(tu)
     tup=tu.copy()
     tup.shape=1,len(tu)
-    if dim:
-        sete.append([np.array(psi)*dimd['psi'],np.array(theta)*dimd['theta'],np.array(aa)*dimd['A'],np.array(tt)*dimd['T'],tup*dimd['time'],(np.array(psi)-np.array(theta))*dimd['psi']])
-        tu=tu*ct
-    else:
-        sete.append([np.array(psi),np.array(theta),np.array(aa),np.array(tt),tup,(np.array(psi)-np.array(theta))])
+    sete.append([np.array(psi)*dimdv['psi'],np.array(theta)*dimdv['theta'],np.array(aa)*dimdv['A'],np.array(tt)*dimdv['T'],tup*dimdv['time']])
+    tu=tu*dimdv['time']
 
 ival=1
 tl=[]
 for i in range(len(sete)):
     tl.append(len(sete[i][0][0]))
 
-# Setting the plots
 
-fig=plt.figure(num=10,figsize=(16,9))
-
-# General title
-fig.suptitle('Spatial fields in the model MAOOAM')
-#fig.text(0.42,0.92,r'Parameters : '+r'$\delta = d/f_0 = %.3e $ , $C_o = ' % dd +str(CO)+r'$')
-
-# General subtitle
-suptit=r'atmosphere $'+ageom.replace('x','x$-$')+r'y$  ocean $'+ogeom.replace('x','x$-$')+r'y$'
-fig.text(0.42,0.92,'Resolution : '+suptit)
-
-# Setting the six views
-ax1=fig.add_subplot(2,3,1)
-ax2=fig.add_subplot(2,3,4,projection='3d')
-ax3=fig.add_subplot(2,3,2)
-ax4=fig.add_subplot(2,3,3)
-ax5=fig.add_subplot(2,3,5)
-ax6=fig.add_subplot(2,3,6)
-
-# Views title
-
-ax1.set_title("Geopotential height difference (m)")
-ax2.set_title('3-D phase space projection')
-ax2.text2D(0.5, 0.9,'(Non-dimensional units)', horizontalalignment='center',verticalalignment='center',transform=ax2.transAxes,fontdict={'size':12})
-ax3.set_title("Atm. Temperature ($^\circ\!$C)")
-ax4.set_title('Ocean Temperature ($^\circ\!$C)') # You can choose between ocean temp. or ocean-atm. temp. difference
-# ax4.set_title('Oc.-Atms Temperature diff.')
-ax5.set_title(r'Geopotential height $\psi_a f_0/g$ (m)',fontdict={'size':14})
-ax6.set_title(r'Ocean $\psi_o$ (m$^2$s$^{-1}$)')#,fontdict={'size':14})
-
-# Attractor axis ranges and labels
-
-# Range
-#ax.view_init(20,24)
-mv=0.25 # Overflow factor
-smax=3*[-30000.]
-x=sete[0]
-smax[0]=max(smax[0],np.amax(x[sd[showp[0]]][n1[0],:]))
-smax[1]=max(smax[1],np.amax(x[sd[showp2[0]]][n2[0],:]))
-smax[2]=max(smax[2],np.amax(x[sd[showp3[0]]][n3[0],:]))
-smin=smax[:]
-smin[0]=min(smin[0],np.amin(x[sd[showp[0]]][n1[0],:]))
-smin[1]=min(smin[1],np.amin(x[sd[showp2[0]]][n2[0],:]))
-smin[2]=min(smin[2],np.amin(x[sd[showp3[0]]][n3[0],:]))
-dmm=[]
-for i in range(3):
-    dmm.append(smax[i]-smin[i])
-
-# Rescaling
-smax[0]=smax[0]+dmm[0]*mv
-smax[1]=smax[1]+dmm[1]*mv
-smax[2]=smax[2]+dmm[2]*mv
-smin[0]=smin[0]-dmm[0]*mv
-smin[1]=smin[1]-dmm[1]*mv
-smin[2]=smin[2]-dmm[2]*mv
-
-# Setting the limits
-#print smin,smax
-ax2.set_xlim(smin[0],smax[0])
-ax2.set_ylim(smin[1],smax[1])
-ax2.set_zlim(smin[2],smax[2])
-fig.canvas.draw()
-
-# Setting the ticks and the labels on the attractor view
-
-# x ticks and axis label
-
-labels = [item.get_text() for item in ax2.get_xticklabels()]
-ii=len(labels)-1
-labto=[]
-#	print labels
-jk=0
-for x in labels:
-    if x:
-        jk+=1
-        y=float(x.replace(u'\u2212',u'-'))
-        y=y/dimd[showp[0]]
-        if jk==1:
-            n=order(y)
-        if abs(n)>2:
-            y=y*10**(-n)
-            y=round(y,2)
-            # labto.append(unicode(y).replace(u'-',u'\u2212')+u'e'+unicode(n).replace(u'-',u'\u2212'))
-            labto.append(unicode(y).replace(u'-',u'\u2212')+unicode(r'$\times 10^{'+str(n)+r'}$'))
-	else:
-            y=round(y,2)
-            labto.append(unicode(y).replace(u'-',u'\u2212'))
-    else:
-        ii-=1
-        labto.append(x)
-ax2.set_xticklabels(labto)
-til1=ax2.xaxis.get_major_ticks()
-for j in range(0,len(til1),1):
-    til1[j].label1.set_visible(False)
-til1[ii].label1.set_visible(True)
-til1[0].label1.set_visible(True)
-
-if showp[0]=='time':
-    ax2.set_xlabel('\n\n'+r'$'+vl[showp[0]]+r'$',fontdict={'size':18})
-else:
-#    if abs(n)>2:
-#        ax2.set_xlabel('\n\n'+r'$'+vl[showp[0]]+str(n1[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})
-#    else:
-    ax2.set_xlabel('\n\n\n'+r'$'+vl[showp[0]]+str(n1[0]+1)+r'}$',fontdict={'size':18})
-
-# y ticks and axis label
-
-labels = [item.get_text() for item in ax2.get_yticklabels()]
-ii=len(labels)-1
-labto=[]
-jk=0
-for x in labels:
-    if x:
-        jk+=1
-        y=float(x.replace(u'\u2212',u'-'))
-        y=y/dimd[showp2[0]]
-        if jk==1:
-            n=order(y)
-        if abs(n)>2:
-            y=y*10**(-n)
-            y=round(y,2)
-            # labto.append(unicode(y).replace(u'-',u'\u2212')+u'e'+unicode(n).replace(u'-',u'\u2212'))
-            labto.append(unicode(y).replace(u'-',u'\u2212')+unicode(r'$\times 10^{'+str(n)+r'}$'))
-	else:
-            y=round(y,2)
-            labto.append(unicode(y).replace(u'-',u'\u2212'))
-    else:
-        ii-=1
-        labto.append(x)
-ax2.set_yticklabels(labto)
-til2=ax2.yaxis.get_major_ticks()
-for j in range(0,len(til2),1):
-    til2[j].label1.set_visible(False)
-til2[ii].label1.set_visible(True)
-til2[0].label1.set_visible(True)
-
-#if abs(n)>2:
-#    ax2.set_ylabel('\n\n'+r'$'+vl[showp2[0]]+str(n2[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})
-#else:
-ax2.set_ylabel('\n\n'+r'$'+vl[showp2[0]]+str(n2[0]+1)+r'}$',fontdict={'size':18})
-
-# z ticks
-
-labels = [item.get_text() for item in ax2.get_zticklabels()]
-ii=len(labels)-1
-labto=[]
-jk=0
-for x in labels:
-    if x:
-        jk+=1
-        y=float(x.replace(u'\u2212',u'-'))
-        y=y/dimd[showp3[0]]
-        if jk==1:
-            n=order(y)
-        if abs(n)>2:
-            y=y*10**(-n)
-            y=round(y,2)
-            # labto.append(unicode(y).replace(u'-',u'\u2212')+u'e'+unicode(n).replace(u'-',u'\u2212'))
-            labto.append(unicode(y).replace(u'-',u'\u2212')+unicode(r'$\times 10^{'+str(n)+r'}$'))
-	else:
-            y=round(y,2)
-            labto.append(unicode(y).replace(u'-',u'\u2212'))
-    else:
-        ii-=1
-        labto.append(x)
-ax2.set_zticklabels(labto)
-til3=ax2.zaxis.get_major_ticks()
-for j in range(0,len(til3),1):
-    til3[j].label1.set_visible(False)
-til3[ii-1].label1.set_visible(True)
-til3[0].label1.set_visible(True)
-
-#if abs(n)>2:
-#    ax2.set_zlabel(''+r'$'+vl[showp3[0]]+str(n3[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})    
-#else:
-ax2.set_zlabel(''+r'$'+vl[showp3[0]]+str(n3[0]+1)+r'}$',fontdict={'size':18})
-
-
-# ticks alignement
-
-[t.set_va('center') for t in ax2.get_yticklabels()]
-[t.set_ha('left') for t in ax2.get_yticklabels()]
-[t.set_va('center') for t in ax2.get_xticklabels()]
-[t.set_ha('right') for t in ax2.get_xticklabels()]
-[t.set_va('center') for t in ax2.get_zticklabels()]
-[t.set_ha('left') for t in ax2.get_zticklabels()]
-
-# other views labels
-
-ax3.set_xlabel('$x^\prime$')
-ax3.set_ylabel('$y^\prime$')
-
-ax4.set_xlabel('$x^\prime$')
-ax4.set_ylabel('$y^\prime$')
-
-ax5.set_xlabel('$x^\prime$')
-ax5.set_ylabel('$y^\prime$')
-
-ax6.set_xlabel('$x^\prime$')
-ax6.set_ylabel('$y^\prime$')
 
 # Sending a mail to alert that the first stage is completed (loading the data
 # and preparing the plots)
 
-msg = MIMEMultipart()
-msg['From'] = fromaddr
-msg['To'] = toaddr
-msg['Subject'] = "Movie run info"
+if fromaddr and toaddr:
+    msg = MIMEMultipart()
+    msg['From'] = fromaddr
+    msg['To'] = toaddr
+    msg['Subject'] = "Movie run info"
 
-body = "The run to generate the video for the geometry:\n\n"
-body += "    atm. "+ageom+" -  oc."+ogeom+"\n\n"
-body += "has finished loading data! "
+    body = "The run to generate the video for the geometry:\n\n"
+    body += "    atm. "+ageom+" -  oc."+ogeom+"\n\n"
+    body += "has finished loading data! "
 
-msg.attach(MIMEText(body, 'plain'))
+    msg.attach(MIMEText(body, 'plain'))
 
-server = smtplib.SMTP('localhost')
-text = msg.as_string()
-server.sendmail(fromaddr, toaddr, text)
-server.quit()
+    server = smtplib.SMTP(servername)
+    text = msg.as_string()
+    server.sendmail(fromaddr, toaddr, text)
+    server.quit()
 
-
-# Actually computing the fields
+#------------------------------
+# Spatial fields computation
+#------------------------------
 
 # Setting the grids
-delta='' #raw_input('Space between points on the grid (default = 0.025) ?') # 
+delta=raw_input('Space between points on the grid (default = 0.025) ?') 
 if not delta:
     delta=0.025
 else:
@@ -673,46 +661,16 @@ y = np.arange(0., np.pi, delta)
 X, Y = np.meshgrid(x, y)
 sh=X.shape
 
-# List holding the fields and their minima and maxima
-Zot=[]
-Uop=[]
-Vop=[]
-Zop=[]
-Zat=[]
-Zap=[]
-Zp3=[]
-Zdt=[]
-mZot=[]
-mZop=[]
-mZat=[]
-mZap=[]
-mZp3=[]
-mZdt=[]
-MZot=[]
-MZop=[]
-MZat=[]
-MZap=[]
-MZp3=[]
-MZdt=[]
-geoap=[]
-
-
-mmin=[0.,0.,0.,0.,0.,0.]
-mmax=[0.,0.,0.,0.,0.,0.]
-
-# Setting the number of frames and the time of the first and the last
-#tl[0]=tl[0]/20
-#tl[0]=int(tl[0]*0.9)
+# Setting the number of frames and the time of the first and the last one
 while True:
     print 'Total number of frames:',tl[0]
     if dim:
         print 'Time between each frame is '+str((tu[1]-tu[0])*at)+' days'
     else:
         print 'Time between each frame is '+str(tu[1]-tu[0])+' timeunit'
-    sti=str(nlf/2) #raw_input('Start at frame (default = first) ?')
-    mti=min(nlf/2-1,15000)
-    ste=str(mti+nlf/2) #raw_input('End at frame (default = last) ?')
-    ite='3' #raw_input('Interval (default = 1) ?')
+    sti=raw_input('Start at frame (default = first) ?')
+    ste=raw_input('End at frame (default = last) ?')
+    ite=raw_input('Interval (default = 1) ?')
     if not sti:
         sti=0
     else:
@@ -734,146 +692,687 @@ while True:
         print 'for a total time of '+str((ste-sti)*(tu[1]-tu[0]))+' years'
     else:
         print 'for a total time of '+str((ste-sti)*(tu[1]-tu[0]))+' timeunits'
-    print 'It will take '+str((ste-sti)*len(mmin)*sh[0]*sh[1]*8/(1.e6*ite))+' Mbytes in the memory! ('+str((ste-sti)*len(mmin)*sh[0]*sh[1]*8/(1.e9*ite))+' GB)'
-    x='y' #raw_input('Do you agree (y/n) ?')
-    if x=='y':
+    print 'It will take '+str((ste-sti)*(4*sh[0]*sh[1]+4*3+1)*8/(1.e6*ite))+' Mbytes in the memory! ('+str((ste-sti)*(4*sh[0]*sh[1]+4*3+1)*8/(1.e9*ite))+' GB)'
+    x=raw_input('Do you agree (y/N) ?')
+    if x in ['y','Y']:
         break
     else:
         print "Let's start again..."
 
 # Loop generating the frame (computing the fields)
+#-------------------------------------------------
+
+# Preparing space to store the fields
+
+# spatial field + minmax
+Z=[]
+Zm=[]
+ZM=[]
+
+for i in range(4):
+    Z.append([])
+    Zm.append([])
+    ZM.append([])
+
+# Meridional profile
+yprof=[]
+yprofmid=[]
+yprofmidave=[]
+yprofave=[]
+
+for i in range(4):
+    yprof.append([])
+    yprofmid.append([])
+    yprofmidave.append([])
+    yprofave.append([])
+
+# Zonal profile
+xprof=[]
+xprofmid=[]
+xprofmidave=[]
+xprofave=[]
+
+for i in range(4):
+    xprof.append([])
+    xprofmid.append([])
+    xprofmidave.append([])
+    xprofave.append([])
+
+# Geopotential height difference at 500mb
+geoap=[]
+
+# Modes distribution
+
+za=[]
+zk=[]
+zl=[]
+
+if 'mode' in Isel:
+    if 'a' in IIsel[Isel.index('mode')][0]:
+        ss=ass
+    else:
+        ss=oss
+
+    z0=np.zeros(ss).flatten()
+    nx=np.arange(ss[0])-0.5
+    ny=np.arange(ss[1])
+    NXa, NYa = np.meshgrid(nx-1.,ny)
+    NXa=NXa.flatten()
+    NYa=NYa.flatten()
+    NXk, NYk = np.meshgrid(nx,ny)
+    NXk=NXk.flatten()
+    NYk=NYk.flatten()
+    NXl, NYl = np.meshgrid(nx+0.5,ny+0.5)
+    NXl=NXl.flatten()
+    NYl=NYl.flatten()
+
+#overall fields max and min
+mmin=np.zeros((4))
+mmax=np.zeros((4))
+
 startt=time.time()
 x=sete[0]
+ifsmax=0.
 for i in range(sti,ste,ite):
     if np.mod(i-sti,100*ite)==0:
         print 'Generating the fields in the frame ',i,'('+str((i-sti)/ite)+')'
-        print 'At time t=',x[4][0,i],'years'
-    Zop.append(ostream_cons(X,Y,x[2][:,i]))
-    # U,V=ovec(X,Y,x[2][:,i])
-    # Uop.append(U)
-    # Vop.append(V)
-    Zot.append(ostream(X,Y,x[3][:,i]))
-    Zat.append(astream(X,Y,x[1][:,i]))
-    Zap.append(astream(X,Y,x[0][:,i]))
+        if dim:
+            print 'At time t=',x[4][0,i],'years'
+        else:
+            print 'At time t=',x[4][0,i],'timeunits'
+    if 'op' in Zsel:
+        Z[Zsel.index('op')].append(ostream_cons(X,Y,x[2][:,i]))
+    if 'ot' in Zsel:
+        Z[Zsel.index('ot')].append(ostream(X,Y,x[3][:,i]))
+    if 'at' in Zsel:
+        Z[Zsel.index('at')].append(astream(X,Y,x[1][:,i]))
+    if 'ap' in Zsel:
+        Z[Zsel.index('ap')].append(astream(X,Y,x[0][:,i]))
 
-    # Zp3.append(astream(X,Y,x[5][:,i]))
-    # Zdt.append(Zot[-1]-Zat[-1])
+    if 'uo' in Zsel or 'vo' in Zsel:
+        U,V=ovec(X,Y,x[2][:,i]/dimd['length'])
+        if 'uo' in Zsel:
+            Z[Zsel.index('uo')].append(U)
+        if 'vo' in Zsel:
+            Z[Zsel.index('vo')].append(V)
 
-    MZop.append(np.amax(Zop[-1]))
-    mZop.append(np.amin(Zop[-1]))
+    if 'ua' in Zsel or 'va' in Zsel:
+        U,V=avec(X,Y,x[0][:,i]*(dimd['strfunc']/(dimdv['psi']*dimd['length'])))
+        if 'ua' in Zsel:
+            Z[Zsel.index('ua')].append(U)
+        if 'va' in Zsel:
+            Z[Zsel.index('va')].append(V)
 
-    # MZop.append(np.amax(np.sqrt(Uop[-1]**2+Vop[-1]**2)))
-    # mZop.append(np.amin(np.sqrt(Uop[-1]**2+Vop[-1]**2)))
+    if 'ua1' in Zsel or 'va1' in Zsel:
+        U,V=avec(X,Y,x[0][:,i]*(dimd['strfunc']/(dimdv['psi']*dimd['length'])))
+        U1,V1=avec(X,Y,x[1][:,i]*(dimd['strfunc']/(dimdv['theta']*dimd['length'])))
+        if 'ua1' in Zsel:
+            Z[Zsel.index('ua1')].append(U+U1)
+        if 'va1' in Zsel:
+            Z[Zsel.index('va1')].append(V+V1)
 
-    MZot.append(np.amax(Zot[-1]))
-    mZot.append(np.amin(Zot[-1]))
-    MZap.append(np.amax(Zap[-1]))
-    mZap.append(np.amin(Zap[-1]))
-    MZat.append(np.amax(Zat[-1]))
-    mZat.append(np.amin(Zat[-1]))
-    geoap.append(geodiff(x[0][:,i]))
-    # MZp3.append(np.amax(Zp3[-1]))
-    # mZp3.append(np.amin(Zp3[-1]))
-    # MZdt.append(np.amax(Zdt[-1]))
-    # mZdt.append(np.amin(Zdt[-1]))
+    if 'ua3' in Zsel or 'va3' in Zsel:
+        U,V=avec(X,Y,x[0][:,i]*(dimd['strfunc']/(dimdv['psi']*dimd['length'])))
+        U1,V1=avec(X,Y,x[1][:,i]*(dimd['strfunc']/(dimdv['theta']*dimd['length'])))
+        if 'ua3' in Zsel:
+            Z[Zsel.index('ua3')].append(U-U1)
+        if 'va3' in Zsel:
+            Z[Zsel.index('va3')].append(V-V1)
+
+    if 'p1' in Zsel:
+        Z[Zsel.index('p1')].append(astream(X,Y,x[0][:,i]*(dimd['strfunc']/dimdv['psi']))+astream(X,Y,x[1][:,i]*(dimd['strfunc']/dimdv['theta'])))
+    if 'p3' in Zsel:
+        Z[Zsel.index('p3')].append(astream(X,Y,x[0][:,i]*(dimd['strfunc']/dimdv['psi']))-astream(X,Y,x[1][:,i]*(dimd['strfunc']/dimdv['theta'])))
+    if 'dt' in Zsel:
+        Z[Zsel.index('dt')].append(ostream(X,Y,x[3][:,i])-astream(X,Y,x[1][:,i]))
+
+    if 'ap1' in Zsel:
+        Z[Zsel.index('ap1')].append(astream(X,Y,x[0][:,i])+astream(X,Y,x[1][:,i]*(dimdv['psi']/dimdv['theta'])))
+    if 'ap3' in Zsel:
+        Z[Zsel.index('ap3')].append(astream(X,Y,x[0][:,i])-astream(X,Y,x[1][:,i]*(dimdv['psi']/dimdv['theta'])))
+
+    if 'diff' in Isel:
+        if 'geo' in IIsel[Isel.index('diff')]:
+            geoap.append(geodiff(x[0][:,i]))
+
+    for j in range(4):
+        ZM[j].append(np.amax(Z[j][-1]))
+        Zm[j].append(np.amin(Z[j][-1]))
+
+    for j in range(4):
+        mmax[j]=max(mmax[j],ZM[j][-1])
+        mmin[j]=min(mmin[j],Zm[j][-1])
+    
+    if 'yprof' in Isel:
+        for j in range(4):
+            yprof[j].append(np.mean(Z[j][-1],axis=1))
+            yprofmid[j].append(Z[j][-1][:,sh[1]/2])
+            if i==sti:
+                yprofmidave[j].append(yprofmid[j][-1])
+                yprofave[j].append(yprof[j][-1])
+            else:
+                y=yprofmidave[j][-1]+(yprofmid[j][-1]-yprofmidave[j][-1])/(i-sti)
+                yprofmidave[j].append(y)
+                y=yprofave[j][-1]+(yprof[j][-1]-yprofave[j][-1])/(i-sti)
+                yprofave[j].append(y)
+    if 'xprof' in Isel:
+        for j in range(4):
+            xprof[j].append(np.mean(Z[j][-1],axis=0))
+            xprofmid[j].append(Z[j][-1][sh[0]/2,:])
+            if i==sti:
+                xprofmidave[j].append(xprofmid[j][-1])
+                xprofave[j].append(xprof[j][-1])
+            else:
+                y=xprofmidave[j][-1]+(xprofmid[j][-1]-xprofmidave[j][-1])/(i-sti)
+                xprofmidave[j].append(y)
+                y=xprofave[j][-1]+(xprof[j][-1]-xprofave[j][-1])/(i-sti)
+                xprofave[j].append(y)
+    if "mode" in Isel:
+        za.append(np.zeros(ss))
+        zk.append(np.zeros(ss))
+        zl.append(np.zeros(ss))
+        ind=Isel.index('mode')
+        y=np.absolute(x[sd[sdd[IIsel[ind][0]]]][:,i])
+        y=100*y/y.sum()
+        for ii in range(1,len(y)+1):
+            if 'a' in IIsel[ind][0]:
+                af=aftable[ii]
+            else:
+                af=oftable[ii]
+            if af['typ']=='A':
+                za[-1][af['Nxi'],af['Nyi']-1]=y[ii-1]
+            elif af['typ']=='K':
+                zk[-1][af['Nxi']-1,af['Nyi']-1]=y[ii-1]
+            elif af['typ']=='L':
+                zl[-1][af['Nxi']-1,af['Nyi']-1]=y[ii-1]
+        za[-1] = za[-1].T
+        za[-1] += 1e-10
+        zk[-1] = zk[-1].T
+        zl[-1] = zl[-1].T
+        za[-1]=za[-1].flatten()
+        zk[-1]=zk[-1].flatten()
+        zl[-1]=zl[-1].flatten()
+        ifsmax=max(ifsmax,np.amax(za[-1]),np.amax(zk[-1]),np.amax(zl[-1]))
 
     
-    mmax[0]=max(mmax[0],MZop[-1])
-    mmin[0]=min(mmin[0],mZop[-1])
-    mmax[1]=max(mmax[1],MZot[-1])
-    mmin[1]=min(mmin[1],mZot[-1])
-    mmax[2]=max(mmax[2],MZat[-1])
-    mmin[2]=min(mmin[2],mZat[-1])
-    mmax[3]=max(mmax[3],MZap[-1])
-    mmin[3]=min(mmin[3],mZap[-1])
-    # mmax[4]=max(mmax[4],MZp3[-1])
-    # mmin[4]=min(mmin[4],mZp3[-1])
-    # mmax[5]=max(mmax[5],MZdt[-1])
-    # mmin[5]=min(mmin[5],mZdt[-1])
-    
-    
+ZM=np.array(ZM)
+Zm=np.array(Zm)
+if 'diff' in Isel:
+    if 'geo' in IIsel[Isel.index('diff')]:
+        geoap=np.array(geoap)
 
-mZot=np.array(mZot)
-mZop=np.array(mZop)
-mZat=np.array(mZat)
-mZap=np.array(mZap)
-# mZp3=np.array(mZp3)
-# mZdt=np.array(mZdt)
-MZot=np.array(MZot)
-MZop=np.array(MZop)
-MZat=np.array(MZat)
-MZap=np.array(MZap)
-geoap=np.array(geoap)
-# MZp3=np.array(MZp3)
-# MZdt=np.array(MZdt)
+if "diff" in Isel:
+    diff=[[],[]]
+    difflab=[[],[]]
 
-dZot=MZot-mZot
-dZop=MZop-mZop
-dZap=MZap-mZap
-dZat=MZat-mZat
-# dZp3=MZp3-mZp3
+if "yprof" in Isel:
+    prof=[[],[]]
+    profave=[[],[]]
+    proflab=[[],[]]
 
-# smax=max(np.amax(dZp3),np.amax(dZap))
-# smin=min(np.amin(dZp3),np.amin(dZap))
-# smax=np.amax(dZap)
-# smin=np.amin(dZap)
-smax=np.amax(geoap)
-smin=np.amin(geoap)
+if "xprof" in Isel:
+    prof2=[[],[]]
+    prof2ave=[[],[]]
+    prof2lab=[[],[]]
 
-# Now that the geopential height difference have been computed
- # we can set the limit of the view showing it
-ax1.set_xlim(0.,sete[0][4][0,ste-1]-sete[0][4][0,sti])
-# ax1.set_xticks([0.,40000.,80000.])
-if smin>0.:
-    ax1.set_ylim(0.9*smin,1.1*smax)
+x=ifsmax
+ifsmax=[None,None]
+ifsmin=[None,None]
+if 'mode' in Isel:
+    ifsmax[Isel.index('mode')]=x
+
+ii=0
+for z in Isel:
+    if z=="diff":
+        for x in IIsel[ii]:
+            if 'sp' in x:
+                i=int(x[2])-1
+                diff[ii].append(ZM[i]-Zm[i])
+                difflab[ii].append(Zlabmini[i])
+                if dim:
+                    difflab[ii][-1]+=Zlabelunit[Zsel[i]]
+            if x=='geo':
+                diff[ii].append(geoap)
+                difflab[ii].append('Geop. H.')
+                if dim:
+                    difflab[ii][-1]+=strg
+
+        ifsmax[ii]=max(map(np.amax,diff[ii]))
+        ifsmin[ii]=min(map(np.amin,diff[ii]))
+    if z=="yprof":
+        for x in IIsel[ii]:
+            if 'spa' in x:
+                i=int(x[3])-1
+                prof[ii].append(yprof[i])
+                profave[ii].append(yprofave[i])
+                proflab[ii].append('Z.A. '+Zlabmini[i])
+                if dim:
+                    proflab[ii][-1]+=Zlabelunit[Zsel[i]]
+            elif 'sp' in x:
+                i=int(x[2])-1
+                prof[ii].append(yprofmid[i])
+                profave[ii].append(yprofmidave[i])
+                proflab[ii].append(Zlabmini[i])
+                if dim:
+                    proflab[ii][-1]+=Zlabelunit[Zsel[i]]
+        ifsmax[ii]=[]
+        ifsmin[ii]=[]
+        for x in prof[ii]:
+            ifsmax[ii].append(max(map(np.amax,x)))
+            ifsmin[ii].append(min(map(np.amin,x)))
+        ifsmax[ii]=max(ifsmax[ii])
+        ifsmin[ii]=min(ifsmin[ii])
+    if z=="xprof":
+        for x in IIsel[ii]:
+            if 'spa' in x:
+                i=int(x[3])-1
+                prof2[ii].append(xprof[i])
+                prof2ave[ii].append(xprofave[i])
+                prof2lab[ii].append('Z.A. '+Zlabmini[i])
+                if dim:
+                    prof2lab[ii][-1]+=Zlabelunit[Zsel[i]]
+            elif 'sp' in x:
+                i=int(x[2])-1
+                prof2[ii].append(xprofmid[i])
+                prof2ave[ii].append(xprofmidave[i])
+                prof2lab[ii].append(Zlabmini[i])
+                if dim:
+                    prof2lab[ii][-1]+=Zlabelunit[Zsel[i]]
+        ifsmax[ii]=[]
+        ifsmin[ii]=[]
+        for x in prof2[ii]:
+            ifsmax[ii].append(max(map(np.amax,x)))
+            ifsmin[ii].append(min(map(np.amin,x)))
+        ifsmax[ii]=max(ifsmax[ii])
+        ifsmin[ii]=min(ifsmin[ii])
+    ii+=1
+
+#--------------------------------------
+# Setup of the plots
+#--------------------------------------
+
+fig=plt.figure(num=10,figsize=(16,9))
+
+# General title
+
+fig.suptitle('Spatial fields in the model MAOOAM')
+
+# General subtitle
+
+suptit=r'atmosphere $'+ageom.replace('x','x$-$')+r'y$  ocean $'+ogeom.replace('x','x$-$')+r'y$'
+fig.text(0.42,0.92,'Resolution : '+suptit)
+
+# Setting the six views
+
+if Isel[0] in ["3D","mode"]:
+    ax1=fig.add_subplot(2,3,1,projection='3d')
 else:
-    ax1.set_ylim(1.1*smin,1.1*smax)
-ax1.set_xlabel('time (years)')
-#ax1.set_ylabel('Geopotential height (m)')
+    ax1=fig.add_subplot(2,3,1)
+if Isel[1] in ["3D","mode"]:
+    ax2=fig.add_subplot(2,3,4,projection='3d')
+else:
+    ax2=fig.add_subplot(2,3,4)
+ax3=fig.add_subplot(2,3,2)
+ax4=fig.add_subplot(2,3,3)
+ax5=fig.add_subplot(2,3,5)
+ax6=fig.add_subplot(2,3,6)
 
-diff=[dZot,dZat,dZop,geoap,dZap]#,dZp3]
-difflab=['Ocean temp.','Atm. temp.',r'Ocean $\Psi$',r'Atm. $\Psi$',r'$\Psi_3$']
+# Views title
 
-# Initializing the animation
+ax1.set_title(Ivtit[Isel[0]])
+if Isel[0]=="mode":
+    ax1.text2D(0.5, 0.9,Zlabelmini[IIsel[0][0]], horizontalalignment='center',verticalalignment='center',transform=ax1.transAxes,fontdict={'size':12})
+if Isel[0]=="3D":
+    ax1.text2D(0.5, 0.9,'(Non-dimensional units)', horizontalalignment='center',verticalalignment='center',transform=ax1.transAxes,fontdict={'size':12})
+ax2.set_title(Ivtit[Isel[1]])
+if Isel[1]=="mode":
+    ax2.text2D(0.5, 0.9,Zlabelmini[IIsel[1][0]], horizontalalignment='center',verticalalignment='center',transform=ax2.transAxes,fontdict={'size':12})
+if Isel[1]=="3D":
+    ax2.text2D(0.5, 0.9,'(Non-dimensional units)', horizontalalignment='center',verticalalignment='center',transform=ax2.transAxes,fontdict={'size':12})
+
+ax3.set_title(Zlab[1])
+ax4.set_title(Zlab[3]) 
+ax5.set_title(Zlab[0])
+ax6.set_title(Zlab[2])
+
+axm=[ax1,ax2]
+
+# 3D view axis ranges and labels
+#----------------------------------
+
+# Range
+if "3D" in Isel:
+    axs=axm[Isel.index('3D')]
+    mv=0.25 # Overflow factor
+    smax=3*[-30000.]
+    x=sete[0]
+    smax[0]=max(smax[0],np.amax(x[sd[showp[0]]][n1[0],:]))
+    smax[1]=max(smax[1],np.amax(x[sd[showp2[0]]][n2[0],:]))
+    smax[2]=max(smax[2],np.amax(x[sd[showp3[0]]][n3[0],:]))
+    smin=smax[:]
+    smin[0]=min(smin[0],np.amin(x[sd[showp[0]]][n1[0],:]))
+    smin[1]=min(smin[1],np.amin(x[sd[showp2[0]]][n2[0],:]))
+    smin[2]=min(smin[2],np.amin(x[sd[showp3[0]]][n3[0],:]))
+    dmm=[]
+    for i in range(3):
+        dmm.append(smax[i]-smin[i])
+
+    # Rescaling
+    smax[0]=smax[0]+dmm[0]*mv
+    smax[1]=smax[1]+dmm[1]*mv
+    smax[2]=smax[2]+dmm[2]*mv
+    smin[0]=smin[0]-dmm[0]*mv
+    smin[1]=smin[1]-dmm[1]*mv
+    smin[2]=smin[2]-dmm[2]*mv
+
+    # Setting the limits
+    axs.set_xlim(smin[0],smax[0])
+    axs.set_ylim(smin[1],smax[1])
+    axs.set_zlim(smin[2],smax[2])
+    fig.canvas.draw()
+
+    # Setting the ticks and the labels on the 3D view
+
+    # x ticks and axis label
+
+    labels = [item.get_text() for item in axs.get_xticklabels()]
+    ii=len(labels)-1
+    labto=[]
+    #	print labels
+    jk=0
+    for x in labels:
+        if x:
+            jk+=1
+            y=float(x.replace(u'\u2212',u'-'))
+            y=y/dimdv[showp[0]]
+            if jk==1:
+                n=order(y)
+            if abs(n)>2:
+                y=y*10**(-n)
+                y=round(y,2)
+                # labto.append(unicode(y).replace(u'-',u'\u2212')+u'e'+unicode(n).replace(u'-',u'\u2212'))
+                labto.append(unicode(y).replace(u'-',u'\u2212')+unicode(r'$\times 10^{'+str(n)+r'}$'))
+            else:
+                y=round(y,2)
+                labto.append(unicode(y).replace(u'-',u'\u2212'))
+        else:
+            ii-=1
+            labto.append(x)
+    axs.set_xticklabels(labto)
+    til1=axs.xaxis.get_major_ticks()
+    for j in range(0,len(til1),1):
+        til1[j].label1.set_visible(False)
+    til1[ii].label1.set_visible(True)
+    til1[0].label1.set_visible(True)
+
+    if showp[0]=='time':
+        axs.set_xlabel('\n\n'+r'$'+vl[showp[0]]+r'$',fontdict={'size':18})
+    else:
+    #    if abs(n)>2:
+    #        axs.set_xlabel('\n\n'+r'$'+vl[showp[0]]+str(n1[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})
+    #    else:
+        axs.set_xlabel('\n\n\n'+r'$'+vl[showp[0]]+str(n1[0]+1)+r'}$',fontdict={'size':18})
+
+    # y ticks and axis label
+
+    labels = [item.get_text() for item in axs.get_yticklabels()]
+    ii=len(labels)-1
+    labto=[]
+    jk=0
+    for x in labels:
+        if x:
+            jk+=1
+            y=float(x.replace(u'\u2212',u'-'))
+            y=y/dimdv[showp2[0]]
+            if jk==1:
+                n=order(y)
+            if abs(n)>2:
+                y=y*10**(-n)
+                y=round(y,2)
+                # labto.append(unicode(y).replace(u'-',u'\u2212')+u'e'+unicode(n).replace(u'-',u'\u2212'))
+                labto.append(unicode(y).replace(u'-',u'\u2212')+unicode(r'$\times 10^{'+str(n)+r'}$'))
+            else:
+                y=round(y,2)
+                labto.append(unicode(y).replace(u'-',u'\u2212'))
+        else:
+            ii-=1
+            labto.append(x)
+    axs.set_yticklabels(labto)
+    til2=axs.yaxis.get_major_ticks()
+    for j in range(0,len(til2),1):
+        til2[j].label1.set_visible(False)
+    til2[ii].label1.set_visible(True)
+    til2[0].label1.set_visible(True)
+
+    #if abs(n)>2:
+    #    axs.set_ylabel('\n\n'+r'$'+vl[showp2[0]]+str(n2[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})
+    #else:
+    axs.set_ylabel('\n\n'+r'$'+vl[showp2[0]]+str(n2[0]+1)+r'}$',fontdict={'size':18})
+
+    # z ticks
+
+    labels = [item.get_text() for item in axs.get_zticklabels()]
+    ii=len(labels)-1
+    labto=[]
+    jk=0
+    for x in labels:
+        if x:
+            jk+=1
+            y=float(x.replace(u'\u2212',u'-'))
+            y=y/dimdv[showp3[0]]
+            if jk==1:
+                n=order(y)
+            if abs(n)>2:
+                y=y*10**(-n)
+                y=round(y,2)
+                # labto.append(unicode(y).replace(u'-',u'\u2212')+u'e'+unicode(n).replace(u'-',u'\u2212'))
+                labto.append(unicode(y).replace(u'-',u'\u2212')+unicode(r'$\times 10^{'+str(n)+r'}$'))
+            else:
+                y=round(y,2)
+                labto.append(unicode(y).replace(u'-',u'\u2212'))
+        else:
+            ii-=1
+            labto.append(x)
+    axs.set_zticklabels(labto)
+    til3=axs.zaxis.get_major_ticks()
+    for j in range(0,len(til3),1):
+        til3[j].label1.set_visible(False)
+    til3[ii-1].label1.set_visible(True)
+    til3[0].label1.set_visible(True)
+
+    #if abs(n)>2:
+    #    axs.set_zlabel(''+r'$'+vl[showp3[0]]+str(n3[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})    
+    #else:
+    axs.set_zlabel(''+r'$'+vl[showp3[0]]+str(n3[0]+1)+r'}$',fontdict={'size':18})
 
 
-# Geopotential height difference plot
+    # ticks alignement
 
-lx=5
-xrlines=[]
-for i in range(lx):
-    xrlines.append(None)
-for i in [3]: #,4
-    xrlines[i],=ax1.plot([],[],label=difflab[i])
+    [t.set_va('center') for t in axs.get_yticklabels()]
+    [t.set_ha('left') for t in axs.get_yticklabels()]
+    [t.set_va('center') for t in axs.get_xticklabels()]
+    [t.set_ha('right') for t in axs.get_xticklabels()]
+    [t.set_va('center') for t in axs.get_zticklabels()]
+    [t.set_ha('left') for t in axs.get_zticklabels()]
 
-# ax1.legend()
+# Other views labels
+#--------------------
+
+ax3.set_xlabel('$x^\prime$')
+ax3.set_ylabel('$y^\prime$')
+
+ax4.set_xlabel('$x^\prime$')
+ax4.set_ylabel('$y^\prime$')
+
+ax5.set_xlabel('$x^\prime$')
+ax5.set_ylabel('$y^\prime$')
+
+ax6.set_xlabel('$x^\prime$')
+ax6.set_ylabel('$y^\prime$')
+
+# Setting the limit of the infoview
+#-------------------------------------------------------
+i=0
+for x in Isel:
+    axs=axm[i]
+    if x=="diff":
+        axs.set_xlim(0.,sete[0][4][0,ste-1]-sete[0][4][0,sti])
+        if ifsmin>0.:
+            axs.set_ylim(0.9*ifsmin[i],1.4*ifsmax[i])
+        else:
+            axs.set_ylim(1.1*ifsmin[i],1.4*ifsmax[i])
+        if dim:
+            axs.set_xlabel('time (years)')
+        else:
+            axs.set_xlabel('time (timeunits)')
+    if x=="yprof":
+        axs.set_xlim(Y[0,0],Y[-1,0])
+        if ifsmin>0.:
+            axs.set_ylim(0.9*ifsmin[i],1.4*ifsmax[i])
+        else:
+            axs.set_ylim(1.1*ifsmin[i],1.4*ifsmax[i])
+        axs.set_xlabel(r'$y^\prime$')
+    if x=="xprof":
+        axs.set_xlim(X[0,0],X[0,-1])
+        if ifsmin>0.:
+            axs.set_ylim(0.9*ifsmin[i],1.4*ifsmax[i])
+        else:
+            axs.set_ylim(1.1*ifsmin[i],1.4*ifsmax[i])
+        axs.set_xlabel(r'$x^\prime$')
+    if x=="mode":
+        axs.set_zlim(0.,ifsmax[i]+10)
+    i+=1
+
+#------------------------------
+# Initialization of the animation
+#------------------------------
+
+# Infoview plot
+ii=0
+xrlines=[[],[]]
+xralines=[[],[]]
+pa=[None,None]
+pk=[None,None]
+pl=[None,None]
+for x in Isel:
+    axs=axm[ii]
+    if x=="diff":
+        for i in range(len(diff[ii])):
+            xrlines[ii].append(None)
+        for i in range(len(diff[ii])):
+            xrlines[ii][i],=axs.plot([],[],label=difflab[ii][i])
+        axs.legend(fontsize=12)
+    if x=="yprof":
+        for i in range(len(prof[ii])):
+            xrlines[ii].append(None)
+        for i in range(len(prof[ii])):
+            xrlines[ii][i],=axs.plot([],[],label=proflab[ii][i])
+        for i in range(len(prof[ii])):
+            xrlines[ii][i].set_xdata(Y[:,0])
+
+        for i in range(len(profave[ii])):
+            xralines[ii].append(None)
+        for i in range(len(profave[ii])):
+            xralines[ii][i],=axs.plot([],[],color=xrlines[ii][i].get_color(),ls=':')
+        for i in range(len(profave[ii])):
+            xralines[ii][i].set_xdata(Y[:,0])
+        axs.plot([],[],color='k',ls=':',label='Time ave.')
+        axs.legend(fontsize=12)
+    if x=="xprof":
+        for i in range(len(prof2[ii])):
+            xrlines[ii].append(None)
+        for i in range(len(prof2[ii])):
+            xrlines[ii][i],=axs.plot([],[],label=prof2lab[ii][i])
+        for i in range(len(prof2[ii])):
+            xrlines[ii][i].set_xdata(X[0,:])
+
+        for i in range(len(prof2ave[ii])):
+            xralines[ii].append(None)
+        for i in range(len(prof2ave[ii])):
+            xralines[ii][i],=axs.plot([],[],color=xrlines[ii][i].get_color(),ls=':')
+        for i in range(len(prof2ave[ii])):
+            xralines[ii][i].set_xdata(X[0,:])
+        axs.plot([],[],color='k',ls=':',label='Time ave.')
+        axs.legend(fontsize=12)
+    if x=='mode':
+         if 'a' in IIsel[ii][0]:
+             axs.set_xlabel('\n\n'+r'$M,\, H$',fontdict={'size':12})
+             axs.set_ylabel('\n\n'+r'$P$',fontdict={'size':12})
+             lnx=np.arange(ss[0]+1)-1.25
+             lny=ny+0.25
+             nxl=[' nd']+map(str,range(1,ss[0]+1))
+             nyl=map(str,range(1,ss[1]+1))
+
+             dx=np.ones_like(z0)*0.3
+             dy=dx.copy()
+             pk[ii]=axs.bar3d(NXk,NYk,z0,dx,dy,z0+1.e-10,color='b',zsort='max',alpha=0.4,linewidth=0,edgecolor="none")
+             pl[ii]=axs.bar3d(NXl,NYl,z0,dx,dy,z0+1.e-10,color='r',zsort='max',alpha=0.6,linewidth=0,edgecolor="none")
+             pa[ii]=axs.bar3d(NXa,NYa,z0,dx,dy,z0+1.e-10,color='c',zsort='average',alpha=0.95,linewidth=0,edgecolor="none")
+         else:
+             axs.set_xlabel('\n\n'+r'$H_{\rm{o}}$',fontdict={'size':12})
+             axs.set_ylabel('\n\n'+r'$P_{\rm{o}}$',fontdict={'size':12})
+             lnx=nx+0.75
+             lny=ny+0.75
+             nxl=map(str,range(1,ss[0]+1))
+             nyl=map(str,range(1,ss[1]+1))
+
+             dx=np.ones_like(z0)*0.8
+             dy=dx.copy()
+
+             pl[ii]=axs.bar3d(NXl,NYl,z0,dx,dy,z0+1.e-10,color='b',zsort='max',alpha=0.7,linewidth=0,edgecolor="none")
+         axs.set_xticks(lnx)
+         axs.set_xticklabels(nxl)
+         axs.set_yticks(lny)
+         axs.set_yticklabels(nyl)
+         axs.tick_params(axis='both',labelsize=10)
+         if 'a' in IIsel[ii][0]:
+             axl=fig.add_axes([0.12,0.77-ii*0.45,0.085,0.075],projection='3d')
+             axl.set_axis_off()
+             axl.view_init(elev=12,azim=98)
+
+             axl.bar3d(1., 0.5, .75,  1., 0.5, 2., color='r',alpha=0.6,linewidth=0,edgecolor="none")
+             axl.bar3d(1., 0.5, 6.5,  1., 0.5, 2., color='b',alpha=0.4,linewidth=0,edgecolor="none")
+             axl.bar3d(1., 0.5, 12.,  1., 0.5, 2., color='c',alpha=0.95,linewidth=0,edgecolor="none")
+
+             axl.set_ylim(0.,1.0)
+             axl.set_xlim(-1.,2.)
+             axl.set_zlim(0.,12.5)
+
+
+             axl.text(0.25,0.6,-.1,'L type',fontdict={'size':12})
+             axl.text(0.5,0.,4.4,'K type',fontdict={'size':12})
+             axl.text(0.5,0.,10.5,'A type',fontdict={'size':12})
+
+             axb = fig.add_axes([0.12,0.77-ii*0.45,0.085,0.075])
+             axb.xaxis.set_visible(False)
+             axb.yaxis.set_visible(False)
+             axb.set_zorder(1000)
+             # axb.patch.set_alpha(0.)
+             axb.patch.set_fill(False)
+             axb.patch.set_color('k')
+    ii+=1
+
 
 # Attractor plot
+if "3D" in Isel:
+    axs=axm[Isel.index('3D')]
+    x=sete[0]
+    axs.plot(x[sd[showp[0]]][n1[0],::ival],x[sd[showp2[0]]][n2[0],::ival],zs=x[sd[showp3[0]]][n3[0],::ival],marker=ms[0],linestyle=ls[0])#,label=fl[i])
+    xpoint,=axs.plot([],[],zs=[],marker=',',linestyle='',color='r')#,label=fl[i])
 
-x=sete[0]
-ax2.plot(x[sd[showp[0]]][n1[0],::ival],x[sd[showp2[0]]][n2[0],::ival],zs=x[sd[showp3[0]]][n3[0],::ival],marker=ms[0],linestyle=ls[0])#,label=fl[i])
-xpoint,=ax2.plot([],[],zs=[],marker=',',linestyle='',color='r')#,label=fl[i])
+# Spatial plots
 
-# Atm. Temperature plot
+im2=ax3.imshow(Z[1][0],interpolation='bilinear', cmap=Zcm[Zsel[1]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[1],vmax=mmax[1]) 
+cl2=fig.colorbar(im2,ax=ax3,format=Zformat[Zsel[1]])
 
-im2=ax3.imshow(Zat[0],interpolation='bilinear', cmap=cm.coolwarm, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[2],vmax=mmax[2]) # ,label='year '+str(ny))
-cl2=fig.colorbar(im2,ax=ax3)#,format=ticker.FuncFormatter(fmt))
+im1=ax4.imshow(Z[3][0],interpolation='bilinear', cmap=Zcm[Zsel[3]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[3],vmax=mmax[3])
+cl1=fig.colorbar(im1,ax=ax4,format=Zformat[Zsel[3]])
 
-# Ocean Temperature plot
+im3=ax5.imshow(Z[0][0],interpolation='bilinear', cmap=Zcm[Zsel[0]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[0],vmax=mmax[0])
+cl3=fig.colorbar(im3,ax=ax5,format=Zformat[Zsel[0]])
 
-im1=ax4.imshow(Zot[0],interpolation='bilinear', cmap=cm.coolwarm, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[1],vmax=mmax[1]) # ,label='year '+str(ny))
-# im1=ax4.imshow(Zdt[0],interpolation='bilinear', cmap=cm.coolwarm, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[5],vmax=mmax[5]) # ,label='year '+str(ny))
-cl1=fig.colorbar(im1,ax=ax4)#,format=ticker.FuncFormatter(fmt))
-
-# Atmospheric stream plot
-
-im3=ax5.imshow(Zap[0],interpolation='bilinear', cmap=cm.gist_rainbow_r, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[3],vmax=mmax[3]) # ,label='year '+str(ny))
-cl3=fig.colorbar(im3,ax=ax5)#,format=ticker.FuncFormatter(fmt))
-
-# Ocean stream plot
-
-im0=ax6.imshow(Zop[0],interpolation='bilinear', cmap=cm.gist_rainbow_r, origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[0],vmax=mmax[0]) # ,label='year '+str(ny))
-cl0=fig.colorbar(im0,ax=ax6,format=ticker.FuncFormatter(fmt))
+im0=ax6.imshow(Z[2][0],interpolation='bilinear', cmap=Zcm[Zsel[2]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[2],vmax=mmax[2]) # ,label='year '+str(ny))
+cl0=fig.colorbar(im0,ax=ax6,format=Zformat[Zsel[2]])
 
 # im0=ax6.streamplot(X,Y,Uop[0],Vop[0],color=np.sqrt(Uop[0]**2+Vop[0]**2),linewidth=2,cmap=cm.Reds)
 
@@ -904,101 +1403,144 @@ ax6.yaxis.set_major_locator(ticker.MultipleLocator(1.0))
 # Defining the animation update function
 
 def animate(i):
-    if i==1:
+    if i==1 and "3D" in Isel:
         xpoint.set_marker('o')
     if np.mod(i,100)==0:
         print i
+
     l=i*ival
-    x=sete[0]  #update of the attractor plot locator
-    xpoint.set_data(x[sd[showp[0]]][n1[0],l:l+1],x[sd[showp2[0]]][n2[0],l:l+1])
-    xpoint.set_3d_properties(x[sd[showp3[0]]][n3[0],l:l+1])
+
+    if "3D" in Isel or 'diff' in Isel: 
+        x=sete[0]  
+
+    if "3D" in Isel: #update of the attractor plot locator
+        xpoint.set_data(x[sd[showp[0]]][n1[0],l:l+1],x[sd[showp2[0]]][n2[0],l:l+1])
+        xpoint.set_3d_properties(x[sd[showp3[0]]][n3[0],l:l+1])
     
-    # Update of the geopotential plot
-    for j in [3]: #,4
-        xrlines[j].set_xdata(x[4][0,:l+1:ival])
-        xrlines[j].set_ydata(diff[j][:l+1:ival])
+    # Update of the info view
+    ii=0
+    for z in Isel:
+        if z=='diff':
+            for j in range(len(diff[ii])):
+                xrlines[ii][j].set_xdata(x[4][0,:l+1:ival])
+                xrlines[ii][j].set_ydata(diff[ii][j][:l+1:ival])
+        if z=='yprof':
+            for j in range(len(prof[ii])):
+                xrlines[ii][j].set_ydata(prof[ii][j][l])
+                xralines[ii][j].set_ydata(profave[ii][j][l])
+        if z=='xprof':
+            for j in range(len(prof2[ii])):
+                xrlines[ii][j].set_ydata(prof2[ii][j][l])
+                xralines[ii][j].set_ydata(prof2ave[ii][j][l])
+        if z=='mode':
+            if pk[ii]:
+                update_Poly3D(pk[ii],NXk,NYk,z0,dx,dy,zk[l])
+            if pl[ii]:
+                update_Poly3D(pl[ii],NXl,NYl,z0,dx,dy,zl[l])
+            if pa[ii]:
+                update_Poly3D(pa[ii],NXa,NYa,z0,dx,dy,za[l])
+        ii+=1
+    
 
     # Actualising the fields plot
     # ax6.cla()
     # # im0=ax6.streamplot(X,Y,Uop[l],Vop[l],color=np.sqrt(Uop[l]**2+Vop[l]**2),linewidth=2,cmap=cm.Reds)
     # im0=ax6.quiver(X,Y,Uop[l],Vop[l])
-    im0.set_data(Zop[l])
-    cl0.on_mappable_changed(im0)
-    im1.set_data(Zot[l])
-    cl1.on_mappable_changed(im1)
-    im2.set_data(Zat[l])
+    im2.set_data(Z[1][l])
     cl2.on_mappable_changed(im2)
-    im3.set_data(Zap[l])
+    im1.set_data(Z[3][l])
+    cl1.on_mappable_changed(im1)
+    im3.set_data(Z[0][l])
     cl3.on_mappable_changed(im3)
-       
-    return xrlines,xpoint,im0,im1,im2,im3#,xilines
+    im0.set_data(Z[2][l])
+    cl0.on_mappable_changed(im0)
+
+    r=[im0,im1,im2,im3]
+    if '3D' in Isel:
+        r.insert(0,xpoint)
+    if 'xprof' in Isel or 'yprof' in Isel:
+        r.insert(0,xralines)
+    if 'diff'in Isel or 'xprof' in Isel or 'yprof' in Isel:
+        r.insert(0,xrlines)
+    if 'mode' in Isel:
+        r.insert(0,pl)
+        r.insert(0,pk)
+        r.insert(0,pa)
+    
+    return r
+
 
 # Computing the animation
 
-# showb=raw_input('Do you want to plot it or to make a movie (P/M) ?')
-showb='M'
+showb=raw_input('Do you want to plot it or to make a movie (p/M) ?')
+if not showb:
+    showb='M'
 
-lengf=len(MZot)
+lengf=len(ZM[0])
 
+matplotlib.verbose.set_level('debug')
 
-if showb=='P' or showb=='p':
+if showb in ['P','p']:
     ani = anim.FuncAnimation(fig, animate, frames=(lengf)/ival, interval=10, blit=False)
     plt.show()
 else:
     while True:
-        # mival=raw_input('Interval between frames in milliseconds ? (default=40)')
-        mival=40
+        mival=raw_input('Interval between frames in milliseconds ? (default=40)')
         if not mival:
             mival=40
         else:
             mival=int(mival)
         print 'The FPS will be '+str(int(1./(mival/1000.)))+' frames per second.'
         print 'The movie will last '+str(mival*lengf/ival/1.e3)+' seconds.'
-        # x=raw_input('Do you agree with this ? (y/n)')
-        x='y'
-        if x=='y':
+        x=raw_input('Do you agree with this ? (y/N)')
+        if x in ['y','Y']:
             break
         else:
             print 'No? Ok...'
 
     # Setting the metadata of the video
     print ' Setting metadata of the movie, please answer the questions:'
-    #tit=raw_input('Title of the movie?')
-    tit='test' # Title
-    #auth=raw_input('Author(s)?')
-    auth='test' # Author
-    lic='test' # License
-    #year=raw_input('Year?')
-    year='1980' # Year of production
-    # comment=raw_input('Comment?')
-    comment='test' # Comments
+    tit=raw_input('Title of the movie?')
+    if not tit:
+        tit='test' # Title
+    auth=raw_input('Author(s)?')
+    if not auth:
+        auth='test' # Author
+    lic=raw_input('License?')
+    if not lic:
+        lic='MIT' # License
+    year=raw_input('Year?')
+    if not year:
+        year='1982' # Year of production
+    comment=raw_input('Comment?')
+    if not comment:
+        comment='test' # Comments
     meta={'title':tit,'artist':auth,'copyright':lic,'comment':comment,'year':year}
 
     # Sending a mail to alert that the video encoding has begun
+    if fromaddr and toaddr:
+        msg = MIMEMultipart()
+        msg['From'] = fromaddr
+        msg['To'] = toaddr
+        msg['Subject'] = "Movie run info"
 
-    msg = MIMEMultipart()
-    msg['From'] = fromaddr
-    msg['To'] = toaddr
-    msg['Subject'] = "Movie run info"
+        body = "The run to generate the video for the geometry:\n\n"
+        body += "    atm. "+ageom+" -  oc."+ogeom+"\n\n"
+        body += "starts the video encoding! "
+        
+        msg.attach(MIMEText(body, 'plain'))
 
-    body = "The run to generate the video for the geometry:\n\n"
-    body += "    atm. "+ageom+" -  oc."+ogeom+"\n\n"
-    body += "starts the video encoding! "
-
-    msg.attach(MIMEText(body, 'plain'))
-
-    server = smtplib.SMTP('localhost')
-    text = msg.as_string()
-    server.sendmail(fromaddr, toaddr, text)
-    server.quit()
+        server = smtplib.SMTP(servername)
+        text = msg.as_string()
+        server.sendmail(fromaddr, toaddr, text)
+        server.quit()
 
 # Actual video generation
     ani = anim.FuncAnimation(fig, animate, frames=(lengf)/ival, interval=mival, blit=False)
     
-    # ssav=raw_input('Output filename ? (default : "out_d'+str(delt)+'_Co'+str(CO)+'.mp4")')
-    ssav='out.mp4'
-    # if not ssav:
-    #     ssav='out_d'+str(delt)+'_Co'+str(CO)+'.mp4'
+    ssav=raw_input('Output filename ? (default : "out.mp4")')
+    if not ssav:
+        ssav='out.mp4'
     ani.save(ssav,writer='mencoder',bitrate=None,codec='mpeg4:vbitrate=3000',metadata=meta) #extra_args=['-vf','scale=1024:576'],
         
 endt=time.time()
@@ -1007,23 +1549,24 @@ endt=time.time()
 
 # Sending a final mail to alert that the video generation has ended.
 
-msg = MIMEMultipart()
-msg['From'] = fromaddr
-msg['To'] = toaddr
-msg['Subject'] = "End of the movie run"
+if fromaddr and toaddr:
+    msg = MIMEMultipart()
+    msg['From'] = fromaddr
+    msg['To'] = toaddr
+    msg['Subject'] = "End of the movie run"
  
-body = "The run to generate the video for the geometry:\n\n"
-body += "    atm. "+ageom+" -  oc."+ogeom+"\n\n"
-body += "is finished. "
+    body = "The run to generate the video for the geometry:\n\n"
+    body += "    atm. "+ageom+" -  oc."+ogeom+"\n\n"
+    body += "is finished. "
 
-m, s = divmod(endt-startt,60)
-h, m = divmod(m,60)
+    m, s = divmod(endt-startt,60)
+    h, m = divmod(m,60)
 
-body += "Time elapsed: "+ "%d:%02d:%02d" % (h,m,s) +' .'
+    body += "Time elapsed: "+ "%d:%02d:%02d" % (h,m,s) +' .'
 
-msg.attach(MIMEText(body, 'plain'))
+    msg.attach(MIMEText(body, 'plain'))
  
-server = smtplib.SMTP('localhost')
-text = msg.as_string()
-server.sendmail(fromaddr, toaddr, text)
-server.quit()
+    server = smtplib.SMTP(servername)
+    text = msg.as_string()
+    server.sendmail(fromaddr, toaddr, text)
+    server.quit()
