@@ -82,7 +82,7 @@ Zsel=['ap','ua','op','uo']
 # Selection of the 1-2 infoviews modes:
 #---------------------------------
 
-Isel=["diff","3D"] # first relates to info1, second to info2
+Isel=["mode","mode"] # first relates to info1, second to info2
 
 #Isel components can be : - diff : Difference plot of various quantities (i.e. geopot. height diff.)
 #                         - yprof : Profile of various quantities along the spatial direction y
@@ -91,7 +91,7 @@ Isel=["diff","3D"] # first relates to info1, second to info2
 #                         - 3D : 3D projection of the attractor, with locator (warning: both 
 #                                infoviews cannot be simultaneously in 3D mode)
 
-IIsel=[['geo'],[]]
+IIsel=[['ap'],['at']]
 
 # IIsel : List holding the content to be shown in the infoviews
 #         Again, first list relates to info1, second to info2
@@ -166,7 +166,7 @@ strw=r" (ms$^{-1}$)"
 
 Zlabelunit={'at':strt,'ot':strt,'dt':"years",'ap':strg,'op':strm,'p3':strm,'p1':strm,'ua':strw,'va':strw,'uo':strw,'vo':strw,'ua3':strw,'va3':strw,'ua1':strw,'va1':strw,'ap3':strg,'ap1':strg}
 
-Zlabelmini={'at':"Atm. T$^\circ$)",'ot':'Oc. T$^\circ$)','dt':'Oc.-Atm. T$^\circ$ diff.','ap':r'Atm. $\psi_a$','op':r'Oc. $\psi_o$','p3':r'Atm. $\psi_a^3$','p1':r'Atm. $\psi_a^1$','ua':'Atm. U wind','va':'Atm. V wind','uo':'Ocean U current','vo':'Ocean V current','ua3':'Atm. low. U wind','va3':'Atm. low. V wind','ua1':'Atm. up. U wind','va1':'Atm. up. V wind','ap3':r'Atm. $\psi_a^3$','ap1':r'Atm. $\psi_a^1$'}
+Zlabelmini={'at':"Atm. T$^\circ$",'ot':'Oc. T$^\circ$','dt':'Oc.-Atm. T$^\circ$ diff.','ap':r'Atm. $\psi_a$','op':r'Oc. $\psi_o$','p3':r'Atm. $\psi_a^3$','p1':r'Atm. $\psi_a^1$','ua':'Atm. U wind','va':'Atm. V wind','uo':'Ocean U current','vo':'Ocean V current','ua3':'Atm. low. U wind','va3':'Atm. low. V wind','ua1':'Atm. up. U wind','va1':'Atm. up. V wind','ap3':r'Atm. $\psi_a^3$','ap1':r'Atm. $\psi_a^1$'}
 
 Zlab=[]
 Zlabmini=[]
@@ -743,9 +743,9 @@ geoap=[]
 
 # Modes distribution
 
-za=[]
-zk=[]
-zl=[]
+za=[[],[]]
+zk=[[],[]]
+zl=[[],[]]
 
 if 'mode' in Isel:
     if 'a' in IIsel[Isel.index('mode')][0]:
@@ -772,7 +772,8 @@ mmax=np.zeros((4))
 
 startt=time.time()
 x=sete[0]
-ifsmax=0.
+ifsmax=[None,None]
+ifsmin=[None,None]
 for i in range(sti,ste,ite):
     if np.mod(i-sti,100*ite)==0:
         print 'Generating the fields in the frame ',i,'('+str((i-sti)/ite)+')'
@@ -868,31 +869,34 @@ for i in range(sti,ste,ite):
                 y=xprofave[j][-1]+(xprof[j][-1]-xprofave[j][-1])/(i-sti)
                 xprofave[j].append(y)
     if "mode" in Isel:
-        za.append(np.zeros(ss))
-        zk.append(np.zeros(ss))
-        zl.append(np.zeros(ss))
-        ind=Isel.index('mode')
-        y=np.absolute(x[sd[sdd[IIsel[ind][0]]]][:,i])
-        y=100*y/y.sum()
-        for ii in range(1,len(y)+1):
-            if 'a' in IIsel[ind][0]:
-                af=aftable[ii]
-            else:
-                af=oftable[ii]
-            if af['typ']=='A':
-                za[-1][af['Nxi'],af['Nyi']-1]=y[ii-1]
-            elif af['typ']=='K':
-                zk[-1][af['Nxi']-1,af['Nyi']-1]=y[ii-1]
-            elif af['typ']=='L':
-                zl[-1][af['Nxi']-1,af['Nyi']-1]=y[ii-1]
-        za[-1] = za[-1].T
-        za[-1] += 1e-10
-        zk[-1] = zk[-1].T
-        zl[-1] = zl[-1].T
-        za[-1]=za[-1].flatten()
-        zk[-1]=zk[-1].flatten()
-        zl[-1]=zl[-1].flatten()
-        ifsmax=max(ifsmax,np.amax(za[-1]),np.amax(zk[-1]),np.amax(zl[-1]))
+        iii=0
+        for z in Isel:
+            if z=='mode':
+                za[iii].append(np.zeros(ss))
+                zk[iii].append(np.zeros(ss))
+                zl[iii].append(np.zeros(ss))
+                y=np.absolute(x[sd[sdd[IIsel[iii][0]]]][:,i])
+                y=100*y/y.sum()
+                for ii in range(1,len(y)+1):
+                    if 'a' in IIsel[iii][0]:
+                        af=aftable[ii]
+                    else:
+                        af=oftable[ii]
+                    if af['typ']=='A':
+                        za[iii][-1][af['Nxi'],af['Nyi']-1]=y[ii-1]
+                    elif af['typ']=='K':
+                        zk[iii][-1][af['Nxi']-1,af['Nyi']-1]=y[ii-1]
+                    elif af['typ']=='L':
+                        zl[iii][-1][af['Nxi']-1,af['Nyi']-1]=y[ii-1]
+                za[iii][-1] = za[iii][-1].T
+                za[iii][-1] += 1e-10
+                zk[iii][-1] = zk[iii][-1].T
+                zl[iii][-1] = zl[iii][-1].T
+                za[iii][-1]=za[iii][-1].flatten()
+                zk[iii][-1]=zk[iii][-1].flatten()
+                zl[iii][-1]=zl[iii][-1].flatten()
+                ifsmax[iii]=max(ifsmax[iii],np.amax(za[iii][-1]),np.amax(zk[iii][-1]),np.amax(zl[iii][-1]))
+            iii+=1
 
     
 ZM=np.array(ZM)
@@ -914,12 +918,6 @@ if "xprof" in Isel:
     prof2=[[],[]]
     prof2ave=[[],[]]
     prof2lab=[[],[]]
-
-x=ifsmax
-ifsmax=[None,None]
-ifsmin=[None,None]
-if 'mode' in Isel:
-    ifsmax[Isel.index('mode')]=x
 
 ii=0
 for z in Isel:
@@ -1434,11 +1432,11 @@ def animate(i):
                 xralines[ii][j].set_ydata(prof2ave[ii][j][l])
         if z=='mode':
             if pk[ii]:
-                update_Poly3D(pk[ii],NXk,NYk,z0,dx,dy,zk[l])
+                update_Poly3D(pk[ii],NXk,NYk,z0,dx,dy,zk[ii][l])
             if pl[ii]:
-                update_Poly3D(pl[ii],NXl,NYl,z0,dx,dy,zl[l])
+                update_Poly3D(pl[ii],NXl,NYl,z0,dx,dy,zl[ii][l])
             if pa[ii]:
-                update_Poly3D(pa[ii],NXa,NYa,z0,dx,dy,za[l])
+                update_Poly3D(pa[ii],NXa,NYa,z0,dx,dy,za[ii][l])
         ii+=1
     
 
