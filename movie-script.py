@@ -82,7 +82,7 @@ Zsel=['ap','ua','op','uo']
 # Selection of the 1-2 infoviews modes:
 #---------------------------------
 
-Isel=["yprof","yprof"] # first relates to info1, second to info2
+Isel=["diff","3D"] # first relates to info1, second to info2
 
 #Isel components can be : - diff : Difference plot of various quantities (i.e. geopot. height diff.)
 #                         - yprof : Profile of various quantities along the spatial direction y
@@ -91,7 +91,7 @@ Isel=["yprof","yprof"] # first relates to info1, second to info2
 #                         - 3D : 3D projection of the attractor, with locator (warning: both 
 #                                infoviews cannot be simultaneously in 3D mode)
 
-IIsel=[['sp2','spa2'],['sp4','spa4']]
+IIsel=[['geo'],[]]
 
 # IIsel : List holding the content to be shown in the infoviews
 #         Again, first list relates to info1, second to info2
@@ -124,6 +124,9 @@ IIsel=[['sp2','spa2'],['sp4','spa4']]
 
 fromaddr = ""
 toaddr = ""
+
+# Server to contact
+servername='localhost'
 
 # Setting of some general model parameters (those in general do not change)
 #--------------------------------------------------------------------------
@@ -638,7 +641,7 @@ if fromaddr and toaddr:
 
     msg.attach(MIMEText(body, 'plain'))
 
-    server = smtplib.SMTP('localhost')
+    server = smtplib.SMTP(servername)
     text = msg.as_string()
     server.sendmail(fromaddr, toaddr, text)
     server.quit()
@@ -1256,7 +1259,7 @@ for x in Isel:
     if x=="diff":
         for i in range(len(diff[ii])):
             xrlines[ii].append(None)
-        for i in range(len(diff)):
+        for i in range(len(diff[ii])):
             xrlines[ii][i],=axs.plot([],[],label=difflab[ii][i])
         axs.legend(fontsize=12)
     if x=="yprof":
@@ -1406,27 +1409,30 @@ def animate(i):
         print i
 
     l=i*ival
-    if "3D" in Isel:
-        x=sete[0]  #update of the attractor plot locator
+
+    if "3D" in Isel or 'diff' in Isel: 
+        x=sete[0]  
+
+    if "3D" in Isel: #update of the attractor plot locator
         xpoint.set_data(x[sd[showp[0]]][n1[0],l:l+1],x[sd[showp2[0]]][n2[0],l:l+1])
         xpoint.set_3d_properties(x[sd[showp3[0]]][n3[0],l:l+1])
     
     # Update of the info view
     ii=0
-    for x in Isel:
-        if x=='diff':
+    for z in Isel:
+        if z=='diff':
             for j in range(len(diff[ii])):
                 xrlines[ii][j].set_xdata(x[4][0,:l+1:ival])
                 xrlines[ii][j].set_ydata(diff[ii][j][:l+1:ival])
-        if x=='yprof':
+        if z=='yprof':
             for j in range(len(prof[ii])):
                 xrlines[ii][j].set_ydata(prof[ii][j][l])
                 xralines[ii][j].set_ydata(profave[ii][j][l])
-        if x=='xprof':
+        if z=='xprof':
             for j in range(len(prof2[ii])):
                 xrlines[ii][j].set_ydata(prof2[ii][j][l])
                 xralines[ii][j].set_ydata(prof2ave[ii][j][l])
-        if x=='mode':
+        if z=='mode':
             if pk[ii]:
                 update_Poly3D(pk[ii],NXk,NYk,z0,dx,dy,zk[l])
             if pl[ii]:
@@ -1524,7 +1530,7 @@ else:
         
         msg.attach(MIMEText(body, 'plain'))
 
-        server = smtplib.SMTP('localhost')
+        server = smtplib.SMTP(servername)
         text = msg.as_string()
         server.sendmail(fromaddr, toaddr, text)
         server.quit()
@@ -1560,7 +1566,7 @@ if fromaddr and toaddr:
 
     msg.attach(MIMEText(body, 'plain'))
  
-    server = smtplib.SMTP('localhost')
+    server = smtplib.SMTP(servername)
     text = msg.as_string()
     server.sendmail(fromaddr, toaddr, text)
     server.quit()
