@@ -2,10 +2,11 @@
 # Code to compute videos of the output of the MAOOAM model
 
 # Copyright :
-# 2016 Jonathan Demaeyer.
+# 2016-2018 Jonathan Demaeyer.
 # See LICENSE.txt for license information.  
 
 # Usage : ./movie-script.py <data-filename> <ageom> <ogeom>
+# Example : ./movie-script.py test.dat 2x4 2x4
 
 # This code needs: 
 # - mencoder
@@ -13,7 +14,7 @@
 # - numpy
 
 # TODO : - Move the parameters at the beginning of the code
-#        - Generate frames on the "fly"
+#        - Generate frames "on the fly"
 
 # Loading of the libraries
 
