@@ -748,24 +748,40 @@ za=[[],[]]
 zk=[[],[]]
 zl=[[],[]]
 
-if 'mode' in Isel:
-    if 'a' in IIsel[Isel.index('mode')][0]:
-        ss=ass
-    else:
-        ss=oss
+NXa=[None,None]
+NYa=[None,None]
 
-    z0=np.zeros(ss).flatten()
-    nx=np.arange(ss[0])-0.5
-    ny=np.arange(ss[1])
-    NXa, NYa = np.meshgrid(nx-1.,ny)
-    NXa=NXa.flatten()
-    NYa=NYa.flatten()
-    NXk, NYk = np.meshgrid(nx,ny)
-    NXk=NXk.flatten()
-    NYk=NYk.flatten()
-    NXl, NYl = np.meshgrid(nx+0.5,ny+0.5)
-    NXl=NXl.flatten()
-    NYl=NYl.flatten()
+NXk=[None,None]
+NYk=[None,None]
+
+NXl=[None,None]
+NYl=[None,None]
+
+z0=[None,None]
+
+ss=[None,None]
+
+if 'mode' in Isel:
+    ii=0
+    for z in Isel:
+        if z=='mode':
+            if 'a' in IIsel[ii][0]:
+                ss[ii]=ass
+            else:
+                ss[ii]=oss
+            z0[ii]=np.zeros(ss[ii]).flatten()
+            nx=np.arange(ss[ii][0])-0.5
+            ny=np.arange(ss[ii][1])
+            NXa[ii], NYa[ii] = np.meshgrid(nx-1.,ny)
+            NXa[ii]=NXa[ii].flatten()
+            NYa[ii]=NYa[ii].flatten()
+            NXk[ii], NYk[ii] = np.meshgrid(nx,ny)
+            NXk[ii]=NXk[ii].flatten()
+            NYk[ii]=NYk[ii].flatten()
+            NXl[ii], NYl[ii] = np.meshgrid(nx+0.5,ny+0.5)
+            NXl[ii]=NXl[ii].flatten()
+            NYl[ii]=NYl[ii].flatten()
+        ii+=1
 
 #overall fields max and min
 mmin=np.zeros((4))
@@ -873,9 +889,9 @@ for i in range(sti,ste,ite):
         iii=0
         for z in Isel:
             if z=='mode':
-                za[iii].append(np.zeros(ss))
-                zk[iii].append(np.zeros(ss))
-                zl[iii].append(np.zeros(ss))
+                za[iii].append(np.zeros(ss[iii]))
+                zk[iii].append(np.zeros(ss[iii]))
+                zl[iii].append(np.zeros(ss[iii]))
                 y=np.absolute(x[sd[sdd[IIsel[iii][0]]]][:,i])
                 y=100*y/y.sum()
                 for ii in range(1,len(y)+1):
@@ -1253,6 +1269,8 @@ xralines=[[],[]]
 pa=[None,None]
 pk=[None,None]
 pl=[None,None]
+dx=[None,None]
+dy=[None,None]
 for x in Isel:
     axs=axm[ii]
     if x=="diff":
@@ -1297,28 +1315,28 @@ for x in Isel:
          if 'a' in IIsel[ii][0]:
              axs.set_xlabel('\n\n'+r'$M,\, H$',fontdict={'size':12})
              axs.set_ylabel('\n\n'+r'$P$',fontdict={'size':12})
-             lnx=np.arange(ss[0]+1)-1.25
+             lnx=np.arange(ss[ii][0]+1)-1.25
              lny=ny+0.25
-             nxl=[' nd']+map(str,range(1,ss[0]+1))
-             nyl=map(str,range(1,ss[1]+1))
+             nxl=[' nd']+map(str,range(1,ss[ii][0]+1))
+             nyl=map(str,range(1,ss[ii][1]+1))
 
-             dx=np.ones_like(z0)*0.3
-             dy=dx.copy()
-             pk[ii]=axs.bar3d(NXk,NYk,z0,dx,dy,z0+1.e-10,color='b',zsort='max',alpha=0.4,linewidth=0,edgecolor="none")
-             pl[ii]=axs.bar3d(NXl,NYl,z0,dx,dy,z0+1.e-10,color='r',zsort='max',alpha=0.6,linewidth=0,edgecolor="none")
-             pa[ii]=axs.bar3d(NXa,NYa,z0,dx,dy,z0+1.e-10,color='c',zsort='average',alpha=0.95,linewidth=0,edgecolor="none")
+             dx[ii]=np.ones_like(z0[ii])*0.3
+             dy[ii]=dx[ii].copy()
+             pk[ii]=axs.bar3d(NXk[ii],NYk[ii],z0[ii],dx[ii],dy[ii],z0[ii]+1.e-10,color='b',zsort='max',alpha=0.4,linewidth=0,edgecolor="none")
+             pl[ii]=axs.bar3d(NXl[ii],NYl[ii],z0[ii],dx[ii],dy[ii],z0[ii]+1.e-10,color='r',zsort='max',alpha=0.6,linewidth=0,edgecolor="none")
+             pa[ii]=axs.bar3d(NXa[ii],NYa[ii],z0[ii],dx[ii],dy[ii],z0[ii]+1.e-10,color='c',zsort='average',alpha=0.95,linewidth=0,edgecolor="none")
          else:
              axs.set_xlabel('\n\n'+r'$H_{\rm{o}}$',fontdict={'size':12})
              axs.set_ylabel('\n\n'+r'$P_{\rm{o}}$',fontdict={'size':12})
              lnx=nx+0.75
              lny=ny+0.75
-             nxl=map(str,range(1,ss[0]+1))
-             nyl=map(str,range(1,ss[1]+1))
+             nxl=map(str,range(1,ss[ii][0]+1))
+             nyl=map(str,range(1,ss[ii][1]+1))
 
-             dx=np.ones_like(z0)*0.8
-             dy=dx.copy()
+             dx[ii]=np.ones_like(z0[ii])*0.8
+             dy[ii]=dx[ii].copy()
 
-             pl[ii]=axs.bar3d(NXl,NYl,z0,dx,dy,z0+1.e-10,color='b',zsort='max',alpha=0.7,linewidth=0,edgecolor="none")
+             pl[ii]=axs.bar3d(NXl[ii],NYl[ii],z0[ii],dx[ii],dy[ii],z0[ii]+1.e-10,color='b',zsort='max',alpha=0.7,linewidth=0,edgecolor="none")
          axs.set_xticks(lnx)
          axs.set_xticklabels(nxl)
          axs.set_yticks(lny)
@@ -1433,11 +1451,11 @@ def animate(i):
                 xralines[ii][j].set_ydata(prof2ave[ii][j][l])
         if z=='mode':
             if pk[ii]:
-                update_Poly3D(pk[ii],NXk,NYk,z0,dx,dy,zk[ii][l])
+                update_Poly3D(pk[ii],NXk[ii],NYk[ii],z0[ii],dx[ii],dy[ii],zk[ii][l])
             if pl[ii]:
-                update_Poly3D(pl[ii],NXl,NYl,z0,dx,dy,zl[ii][l])
+                update_Poly3D(pl[ii],NXl[ii],NYl[ii],z0[ii],dx[ii],dy[ii],zl[ii][l])
             if pa[ii]:
-                update_Poly3D(pa[ii],NXa,NYa,z0,dx,dy,za[ii][l])
+                update_Poly3D(pa[ii],NXa[ii],NYa[ii],z0[ii],dx[ii],dy[ii],za[ii][l])
         ii+=1
     
 
@@ -1466,7 +1484,7 @@ def animate(i):
         r.insert(0,pk)
         r.insert(0,pa)
     
-    return r
+    return tuple(r)
 
 
 # Computing the animation
