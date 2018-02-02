@@ -71,18 +71,18 @@ import subprocess
 #                     - va : atmospheric V wind component at 500 mb
 #                     - uo : oceanic U current component
 #                     - vo : oceanic V current component
-#                     - ua1: atmospheric upper U wind component
-#                     - va1: atmospheric upper V wind component
-#                     - ua3: atmospheric lower U wind component
-#                     - va3: atmospheric lower V wind component
+#                     - ua1: atmospheric upper U wind component (250 mb)
+#                     - va1: atmospheric upper V wind component (250 mb)
+#                     - ua3: atmospheric lower U wind component (750 mb)
+#                     - va3: atmospheric lower V wind component (750 mb)
 
 
-Zsel=['ap','ua','op','uo']
+Zsel=['ap','at','op','ot']
 
 # Selection of the 1-2 infoviews modes:
 #---------------------------------
 
-Isel=["mode","mode"] # first relates to info1, second to info2
+Isel=["diff","3D"] # first relates to info1, second to info2
 
 #Isel components can be : - diff : Difference plot of various quantities (i.e. geopot. height diff.)
 #                         - yprof : Profile of various quantities along the spatial direction y
@@ -91,7 +91,7 @@ Isel=["mode","mode"] # first relates to info1, second to info2
 #                         - 3D : 3D projection of the attractor, with locator (warning: both 
 #                                infoviews cannot be simultaneously in 3D mode)
 
-IIsel=[['ap'],['at']]
+IIsel=[['geo'],[]]
 
 # IIsel : List holding the content to be shown in the infoviews
 #         Again, first list relates to info1, second to info2
@@ -117,10 +117,11 @@ IIsel=[['ap'],['at']]
 #               - at: Atmosphere temperature modes
 
 
-# Mailserver configuration
-#--------------------------
+# Mailserver configuration (optional)
+#------------------------------------
 
 # Defining mail address from where and to which send mails
+# Not used if no addresses are defined
 
 fromaddr = ""
 toaddr = ""
@@ -130,16 +131,15 @@ servername='localhost'
 
 # Setting of some general model parameters (those in general do not change)
 #--------------------------------------------------------------------------
-nr=1.5
-al=0.
-f0=0.0001032
-L=5000000./np.pi
-rpr=L**2*f0
-RR=287.
-RK=rpr*f0/RR
-at=365.25
-ct=(1/(f0*24*3600))/at 
-geo=f0/9.81
+nr=1.5                   # aspect ratio
+f0=0.0001032             # Coriolis parameter
+L=5000000./np.pi         # characteristic spatial scale
+rpr=L**2*f0              # streamfunction scaling
+RR=287.                  # Gas constant of dry air
+RK=rpr*f0/RR             # Temperature scaling
+at=365.25                # Duration of a year in days
+ct=(1/(f0*24*3600))/at   # Time scaling from timeunits to years
+geo=f0/9.81              # Geopotential scaling in meters
 
 
 #--------------------------
