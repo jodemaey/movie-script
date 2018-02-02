@@ -1499,6 +1499,7 @@ else:
 
     # Setting the metadata of the video
     print ' Setting metadata of the movie, please answer the questions:'
+    print ' (Leave blank if not needed!)'
     tit=raw_input('Title of the movie?')
     if not tit:
         tit='test' # Title
