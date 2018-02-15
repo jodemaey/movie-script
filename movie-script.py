@@ -503,8 +503,7 @@ x2=dimd['timey']*float(x2.split()[0])
 # providing a gross (experimental) estimation of what it will take in the memory
 # Warning : Estimation not accurate for the moment
 print 'There is '+str(nlf)+' lines of data in the file'
-print 'representing '+str(nlf*(ndim+1)*8/1.e6)+' Mbytes ('+str(nlf*(ndim+1)*8/1.e9)+' GB)'
-print 'and '+str((x2-x1)*nlf)+' years of data.'
+print 'representing '+str((x2-x1)*nlf)+' years of data.'
 while True:
     sti=raw_input('Where do you want to start reading ? (default=first)')
     ste=raw_input('And where do you want to stop ? (default=last)')
@@ -521,7 +520,7 @@ while True:
         itr=1
     else:
         itr=int(itr)
-    print 'It will represent '+str((ste-sti)*(ndim+1)*8/1.e6/itr)+' Mbytes of data in the memory. ('+str((ste-sti)*(ndim+1)*8/1.e9/itr)+' GB)'
+    print 'It will represent '+str((ste-sti)*(3+1)*8/1.e6/itr)+' Mbytes of data in the memory. ('+str((ste-sti)*(3+1)*8/1.e9/itr)+' GB)'
     print 'and '+str((x2-x1)*(ste-sti))+' years of data.'
     x=raw_input('Do you agree with this ? (y/N)')
     if x in ['y','Y']:
@@ -531,6 +530,9 @@ while True:
 
 # Defining the variables that will be shown in the "attractor" view
 #-------------------------------------------------------------------
+
+# Index of the components in the data
+sdi={'psi':1,'theta':amod+1,'A':2*amod+1,'T':2*amod+omod+1,'time':0}
 
 ls=[]
 ms=[]
@@ -577,55 +579,38 @@ for i in range(len(sl)):
 # Retrieving the data from the files
 #---------------------------------------
 
-sete=[]
+dserie=[]
 for j in range(len(evol)):
     e=evol[j]
     tu=[]
-    psi=[]
-    theta=[]
-    for i in range(amod):
-        psi.append([])
-        theta.append([])
     aa=[]
-    tt=[]
-    for i in range(omod):
+    for i in range(3):
         aa.append([])
-    for i in range(omod):
-        tt.append([])
-
-    ef=[]
+    
     ii=0
     for x in e:
-        if ii>=sti and ii<=ste:
-            if np.mod(ii-sti,itr)==0:
-                ef.append(x)
+        if ii>=sti and ii<=ste and np.mod(ii-sti,itr)==0:
+            y=x.split()
+            tu.append(float(y[sdi['time']]))
+            aa[0].append(float(y[n1[j]+sdi[showp[j]]]))
+            aa[1].append(float(y[n2[j]+sdi[showp2[j]]]))
+            aa[2].append(float(y[n3[j]+sdi[showp3[j]]]))
         if ii>ste:
             break
         ii+=1
 
-    for x in ef:
-        y=x.split()
-        tu.append(float(y[0]))
-        for i in range(1,amod+1):
-            psi[i-1].append(float(y[i]))
-            theta[i-1].append(float(y[i+amod]))
-        for i in range(omod):
-            aa[i].append(float(y[1+2*amod+i]))
-        for i in range(omod):
-            tt[i].append(float(y[1+2*amod+omod+i]))
+    e.seek(0)
 
     tu=np.array(tu)
     tup=tu.copy()
     tup.shape=1,len(tu)
-    sete.append([np.array(psi)*dimdv['psi'],np.array(theta)*dimdv['theta'],np.array(aa)*dimdv['A'],np.array(tt)*dimdv['T'],tup*dimdv['time']])
-    tu=tu*dimdv['time']
+    dserie.append([np.array(aa),tup*dimdv['time']])
 
-ival=1
 tl=[]
-for i in range(len(sete)):
-    tl.append(len(sete[i][0][0]))
+for i in range(len(dserie)):
+    tl.append(len(dserie[0][0][0]))
 
-
+# cleaning finished here
 
 # Sending a mail to alert that the first stage is completed (loading the data
 # and preparing the plots)
@@ -1374,7 +1359,7 @@ for x in Isel:
 if "3D" in Isel:
     axs=axm[Isel.index('3D')]
     x=sete[0]
-    axs.plot(x[sd[showp[0]]][n1[0],::ival],x[sd[showp2[0]]][n2[0],::ival],zs=x[sd[showp3[0]]][n3[0],::ival],marker=ms[0],linestyle=ls[0])#,label=fl[i])
+    axs.plot(x[sd[showp[0]]][n1[0],:],x[sd[showp2[0]]][n2[0],:],zs=x[sd[showp3[0]]][n3[0],:],marker=ms[0],linestyle=ls[0])#,label=fl[i])
     xpoint,=axs.plot([],[],zs=[],marker=',',linestyle='',color='r')#,label=fl[i])
 
 # Spatial plots
@@ -1419,13 +1404,11 @@ ax6.yaxis.set_major_locator(ticker.MultipleLocator(1.0))
 
 # Defining the animation update function
 
-def animate(i):
-    if i==1 and "3D" in Isel:
+def animate(l):
+    if l==1 and "3D" in Isel:
         xpoint.set_marker('o')
-    if np.mod(i,100)==0:
-        print i
-
-    l=i*ival
+    if np.mod(l,100)==0:
+        print l
 
     if "3D" in Isel or 'diff' in Isel: 
         x=sete[0]  
