@@ -462,17 +462,14 @@ else:
     s=raw_input('Filename of the data ?')
 
 
-#-----------------------------------------
-# Loading the data
-#-----------------------------------------
-
-# Opening files and determing data range
+#----------------------------------------
+# Opening files
 #-----------------------------------------
 
 # Possible legend for the data (not used in general)
 #leg=raw_input('Legende?')
 leg=''
-sl=[s] # Nom du fichier de donnee
+sl=[s] # Data filename
 fl=[leg] # Legende
 nlf=linecount(s) # Counting the number of line of data
 
@@ -485,156 +482,157 @@ for s in sl:
         evol.append(open(s,'r'))
 
 # Computing the frequency of sampling
-s=sl[0]
-if s[-3:]=='.gz':
-    f = gzip.open(s,'r')
-else:
-    f = open(s,'r')
+e=evol[0]
+    
+x1=e.readline()
+x2=e.readline()
 
-x1=f.readline()
-x2=f.readline()
+x1=float(x1.split()[0])
+x2=float(x2.split()[0])
 
-f.close()
+dt=x2-x1
+dty=(x2-x1)*dimd['timey']
 
-x1=dimd['timey']*float(x1.split()[0])
-x2=dimd['timey']*float(x2.split()[0])
-
-# Asking the user from which line to which line he want to read
-# providing a gross (experimental) estimation of what it will take in the memory
-# Warning : Estimation not accurate for the moment
-print 'There is '+str(nlf)+' lines of data in the file'
-print 'representing '+str((x2-x1)*nlf)+' years of data.'
-while True:
-    sti=raw_input('Where do you want to start reading ? (default=first)')
-    ste=raw_input('And where do you want to stop ? (default=last)')
-    itr=raw_input('What interval should we use to read lines ? (default=1)')
-    if not sti:
-        sti=0
-    else:
-        sti=int(sti)-1
-    if not ste:
-        ste=nlf-1
-    else:
-        ste=int(ste)-1
-    if not itr:
-        itr=1
-    else:
-        itr=int(itr)
-    print 'It will represent '+str((ste-sti)*(3+1)*8/1.e6/itr)+' Mbytes of data in the memory. ('+str((ste-sti)*(3+1)*8/1.e9/itr)+' GB)'
-    print 'and '+str((x2-x1)*(ste-sti))+' years of data.'
-    x=raw_input('Do you agree with this ? (y/N)')
-    if x in ['y','Y']:
-        break
-    else:
-        print 'No? Ok...'
-
-# Defining the variables that will be shown in the "attractor" view
-#-------------------------------------------------------------------
+#------------------------------------------------
+# Data for the 3D mode (if selected)
+#------------------------------------------------
 
 # Index of the components in the data
 sdi={'psi':1,'theta':amod+1,'A':2*amod+1,'T':2*amod+omod+1,'time':0}
 
-ls=[]
-ms=[]
-showp=[]
-showp2=[]
-showp3=[]
-n1=[]
-n2=[]
-n3=[]
-s=''
-for x in sd.keys():
-    s+=x+', '
-s=s[:-2]
-for i in range(len(sl)):
-    print 'Parameter for the file ',sl[i]
-    x='A' #raw_input('Var ('+s+') ?')
-    showp.append(x)
-    if x=='time':
-        n1.append(0)
-    else:
-        x=2 #input('Number?')
-        n1.append(x-1)
-    x='T' #raw_input('Var2 ('+s[:-6]+') ?')
-    showp2.append(x)
-    x=2 #input('Number?')
-    n2.append(x-1)
-    x='psi' #raw_input('Var3 ('+s[:-6]+') ?')
-    showp3.append(x)
-    if not x:
-        n3.append(-1)
-    else:
-        x=1 #input('Number ?')
-        n3.append(x-1)
+if "3D" in Isel:
 
-    x='' #raw_input('Line style ? (default=None)')
-    ls.append(x)
-    x='' #raw_input('Marker ? (default=pixel)')
-    if not x:
-        ms.append(',')
-    else:
-        ms.append(x)
+    # Asking the user from which line to which line he want to read
+    # providing a gross (experimental) estimation of what it will take in the memory
+    # Warning : Estimation not accurate for the moment
 
-    
-# Retrieving the data from the files
-#---------------------------------------
-
-dserie=[]
-for j in range(len(evol)):
-    e=evol[j]
-    tu=[]
-    aa=[]
-    for i in range(3):
-        aa.append([])
-    
-    ii=0
-    for x in e:
-        if ii>=sti and ii<=ste and np.mod(ii-sti,itr)==0:
-            y=x.split()
-            tu.append(float(y[sdi['time']]))
-            aa[0].append(float(y[n1[j]+sdi[showp[j]]]))
-            aa[1].append(float(y[n2[j]+sdi[showp2[j]]]))
-            aa[2].append(float(y[n3[j]+sdi[showp3[j]]]))
-        if ii>ste:
+    print 'Selecting the data for the 3D view'
+    print "----------------------------------"
+    print ""
+    print 'There are '+str(nlf)+' lines of data in the file'
+    print 'representing '+str(dty*nlf)+' years of data.'
+    while True:
+        sti=raw_input('Where do you want to start reading ? (default=first)')
+        ste=raw_input('And where do you want to stop ? (default=last)')
+        itr=raw_input('What interval should we use to read lines ? (default=1)')
+        if not sti:
+            sti=0
+        else:
+            sti=int(sti)-1
+        if not ste:
+            ste=nlf-1
+        else:
+            ste=int(ste)-1
+        if not itr:
+            itr=1
+        else:
+            itr=int(itr)
+        print 'It will represent '+str((ste-sti)*(3+1)*8/1.e6/itr)+' Mbytes of data in the memory. ('+str((ste-sti)*(3+1)*8/1.e9/itr)+' GB)'
+        print 'and '+str(dty*(ste-sti))+' years of data.'
+        x=raw_input('Do you agree with this ? (y/N)')
+        if x in ['y','Y']:
             break
-        ii+=1
+        else:
+            print 'No? Ok...'
 
-    e.seek(0)
+    # Defining the variables that will be shown in the "attractor" view
+    #-------------------------------------------------------------------
 
-    tu=np.array(tu)
-    tup=tu.copy()
-    tup.shape=1,len(tu)
-    dserie.append([np.array(aa),tup*dimdv['time']])
+    ls=[]
+    ms=[]
+    showp=[]
+    showp2=[]
+    showp3=[]
+    n1=[]
+    n2=[]
+    n3=[]
+    s=''
+    for x in sd.keys():
+        s+=x+', '
+    s=s[:-2]
+    for i in range(len(sl)):
+        print 'Parameter for the file ',sl[i]
+        x='A' #raw_input('Var ('+s+') ?')
+        showp.append(x)
+        if x=='time':
+            n1.append(0)
+        else:
+            x=2 #input('Number?')
+            n1.append(x-1)
+        x='T' #raw_input('Var2 ('+s[:-6]+') ?')
+        showp2.append(x)
+        x=2 #input('Number?')
+        n2.append(x-1)
+        x='psi' #raw_input('Var3 ('+s[:-6]+') ?')
+        showp3.append(x)
+        if not x:
+            n3.append(-1)
+        else:
+            x=1 #input('Number ?')
+            n3.append(x-1)
 
-tl=[]
-for i in range(len(dserie)):
-    tl.append(len(dserie[0][0][0]))
+        x='' #raw_input('Line style ? (default=None)')
+        ls.append(x)
+        x='' #raw_input('Marker ? (default=pixel)')
+        if not x:
+            ms.append(',')
+        else:
+            ms.append(x)
 
-# cleaning finished here
 
-# Sending a mail to alert that the first stage is completed (loading the data
-# and preparing the plots)
+    # Retrieving the data from the files
+    #---------------------------------------
 
-if fromaddr and toaddr:
-    msg = MIMEMultipart()
-    msg['From'] = fromaddr
-    msg['To'] = toaddr
-    msg['Subject'] = "Movie run info"
+    dserie=[]
+    for j in range(len(evol)):
+        e=evol[j]
+        e.seek(0)
+        tu=[]
+        aa=[]
+        for i in range(3):
+            aa.append([])
 
-    body = "The run to generate the video for the geometry:\n\n"
-    body += "    atm. "+ageom+" -  oc."+ogeom+"\n\n"
-    body += "has finished loading data! "
+        ii=0
+        for x in e:
+            if ii>=sti and ii<=ste and np.mod(ii-sti,itr)==0:
+                y=x.split()
+                tu.append(float(y[sdi['time']]))
+                aa[0].append(float(y[n1[j]+sdi[showp[j]]]))
+                aa[1].append(float(y[n2[j]+sdi[showp2[j]]]))
+                aa[2].append(float(y[n3[j]+sdi[showp3[j]]]))
+            if ii>ste:
+                break
+            ii+=1
 
-    msg.attach(MIMEText(body, 'plain'))
+        tu=np.array(tu)
+        tup=tu.copy()
+        tup.shape=1,len(tu)
+        dserie.append([np.array(aa),tup*dimdv['time']])
 
-    server = smtplib.SMTP(servername)
-    text = msg.as_string()
-    server.sendmail(fromaddr, toaddr, text)
-    server.quit()
+    # Sending a mail to alert that the data are loaded
+
+    if fromaddr and toaddr:
+        msg = MIMEMultipart()
+        msg['From'] = fromaddr
+        msg['To'] = toaddr
+        msg['Subject'] = "Movie run info"
+
+        body = "The run to generate the video for the geometry:\n\n"
+        body += "    atm. "+ageom+" -  oc."+ogeom+"\n\n"
+        body += "has finished loading data for the 3D view! "
+
+        msg.attach(MIMEText(body, 'plain'))
+
+        server = smtplib.SMTP(servername)
+        text = msg.as_string()
+        server.sendmail(fromaddr, toaddr, text)
+        server.quit()
 
 #------------------------------
 # Spatial fields computation
 #------------------------------
+
+startt=time.time()
 
 # Setting the grids
 delta=raw_input('Space between points on the grid (default = 0.025) ?') 
@@ -649,11 +647,11 @@ sh=X.shape
 
 # Setting the number of frames and the time of the first and the last one
 while True:
-    print 'Total number of frames:',tl[0]
+    print 'Total number of possible frames:',nlf
     if dim:
-        print 'Time between each frame is '+str((tu[1]-tu[0])*at)+' days'
+        print 'Time between each frame is '+str(dt*at)+' days'
     else:
-        print 'Time between each frame is '+str(tu[1]-tu[0])+' timeunit'
+        print 'Time between each frame is '+str(dt)+' timeunit'
     sti=raw_input('Start at frame (default = first) ?')
     ste=raw_input('End at frame (default = last) ?')
     ite=raw_input('Interval (default = 1) ?')
@@ -662,7 +660,7 @@ while True:
     else:
         sti=int(sti)
     if not ste:
-        ste=tl[0]
+        ste=nlf-1
     else:
         ste=int(ste)
     if not ite:
@@ -670,28 +668,31 @@ while True:
     else:
         ite=int(ite)
     if dim:
-        print 'Time between each frame is now '+str(ite*(tu[1]-tu[0])*at)+' days'
+        print 'Time between each frame is now '+str(ite*dt*at)+' days'
     else:
-        print 'Time between each frame is '+str(ite*(tu[1]-tu[0]))+' timeunits'
+        print 'Time between each frame is '+str(ite*dt)+' timeunits'
     print 'Number of frames that will effectively be computed :'+str((ste-sti)/ite)
     if dim:
-        print 'for a total time of '+str((ste-sti)*(tu[1]-tu[0]))+' years'
+        print 'for a total time of '+str((ste-sti)*dt)+' years'
     else:
-        print 'for a total time of '+str((ste-sti)*(tu[1]-tu[0]))+' timeunits'
-    print 'It will take '+str((ste-sti)*(4*sh[0]*sh[1]+4*3+1)*8/(1.e6*ite))+' Mbytes in the memory! ('+str((ste-sti)*(4*sh[0]*sh[1]+4*3+1)*8/(1.e9*ite))+' GB)'
+        print 'for a total time of '+str((ste-sti)*dt)+' timeunits'
+
     x=raw_input('Do you agree (y/N) ?')
     if x in ['y','Y']:
         break
     else:
         print "Let's start again..."
 
-# Loop generating the frame (computing the fields)
-#-------------------------------------------------
+#------------------------------------------------------------
+# First loop : Computing the fields extremums and derivatives
+#------------------------------------------------------------
 
-# Preparing space to store the fields
+print "Computing fields extermums..."
+print "This may take a while..."
+
+# Preparing space to store the results
 
 # spatial field + minmax
-Z=[]
 Zm=[]
 ZM=[]
 
@@ -772,133 +773,163 @@ if 'mode' in Isel:
 mmin=np.zeros((4))
 mmax=np.zeros((4))
 
-startt=time.time()
-x=sete[0]
+#infoviews max and min
 ifsmax=[None,None]
 ifsmin=[None,None]
-for i in range(sti,ste,ite):
-    if np.mod(i-sti,100*ite)==0:
-        print 'Generating the fields in the frame ',i,'('+str((i-sti)/ite)+')'
-        if dim:
-            print 'At time t=',x[4][0,i],'years'
-        else:
-            print 'At time t=',x[4][0,i],'timeunits'
-    if 'op' in Zsel:
-        Z[Zsel.index('op')].append(ostream_cons(X,Y,x[2][:,i]))
-    if 'ot' in Zsel:
-        Z[Zsel.index('ot')].append(ostream(X,Y,x[3][:,i]))
-    if 'at' in Zsel:
-        Z[Zsel.index('at')].append(astream(X,Y,x[1][:,i]))
-    if 'ap' in Zsel:
-        Z[Zsel.index('ap')].append(astream(X,Y,x[0][:,i]))
 
-    if 'uo' in Zsel or 'vo' in Zsel:
-        U,V=ovec(X,Y,x[2][:,i]/dimd['length'])
-        if 'uo' in Zsel:
-            Z[Zsel.index('uo')].append(U)
-        if 'vo' in Zsel:
-            Z[Zsel.index('vo')].append(V)
+e=evol[0]
+e.seek(0)
 
-    if 'ua' in Zsel or 'va' in Zsel:
-        U,V=avec(X,Y,x[0][:,i]*(dimd['strfunc']/(dimdv['psi']*dimd['length'])))
-        if 'ua' in Zsel:
-            Z[Zsel.index('ua')].append(U)
-        if 'va' in Zsel:
-            Z[Zsel.index('va')].append(V)
+psi=np.zeros((amod))
+theta=np.zeros((amod))
+aa=np.zeros((omod))
+tt=np.zeros((omod))
 
-    if 'ua1' in Zsel or 'va1' in Zsel:
-        U,V=avec(X,Y,x[0][:,i]*(dimd['strfunc']/(dimdv['psi']*dimd['length'])))
-        U1,V1=avec(X,Y,x[1][:,i]*(dimd['strfunc']/(dimdv['theta']*dimd['length'])))
-        if 'ua1' in Zsel:
-            Z[Zsel.index('ua1')].append(U+U1)
-        if 'va1' in Zsel:
-            Z[Zsel.index('va1')].append(V+V1)
-
-    if 'ua3' in Zsel or 'va3' in Zsel:
-        U,V=avec(X,Y,x[0][:,i]*(dimd['strfunc']/(dimdv['psi']*dimd['length'])))
-        U1,V1=avec(X,Y,x[1][:,i]*(dimd['strfunc']/(dimdv['theta']*dimd['length'])))
-        if 'ua3' in Zsel:
-            Z[Zsel.index('ua3')].append(U-U1)
-        if 'va3' in Zsel:
-            Z[Zsel.index('va3')].append(V-V1)
-
-    if 'p1' in Zsel:
-        Z[Zsel.index('p1')].append(astream(X,Y,x[0][:,i]*(dimd['strfunc']/dimdv['psi']))+astream(X,Y,x[1][:,i]*(dimd['strfunc']/dimdv['theta'])))
-    if 'p3' in Zsel:
-        Z[Zsel.index('p3')].append(astream(X,Y,x[0][:,i]*(dimd['strfunc']/dimdv['psi']))-astream(X,Y,x[1][:,i]*(dimd['strfunc']/dimdv['theta'])))
-    if 'dt' in Zsel:
-        Z[Zsel.index('dt')].append(ostream(X,Y,x[3][:,i])-astream(X,Y,x[1][:,i]))
-
-    if 'ap1' in Zsel:
-        Z[Zsel.index('ap1')].append(astream(X,Y,x[0][:,i])+astream(X,Y,x[1][:,i]*(dimdv['psi']/dimdv['theta'])))
-    if 'ap3' in Zsel:
-        Z[Zsel.index('ap3')].append(astream(X,Y,x[0][:,i])-astream(X,Y,x[1][:,i]*(dimdv['psi']/dimdv['theta'])))
-
-    if 'diff' in Isel:
-        if 'geo' in IIsel[Isel.index('diff')]:
-            geoap.append(geodiff(x[0][:,i]))
-
-    for j in range(4):
-        ZM[j].append(np.amax(Z[j][-1]))
-        Zm[j].append(np.amin(Z[j][-1]))
-
-    for j in range(4):
-        mmax[j]=max(mmax[j],ZM[j][-1])
-        mmin[j]=min(mmin[j],Zm[j][-1])
-    
-    if 'yprof' in Isel:
-        for j in range(4):
-            yprof[j].append(np.mean(Z[j][-1],axis=1))
-            yprofmid[j].append(Z[j][-1][:,sh[1]/2])
-            if i==sti:
-                yprofmidave[j].append(yprofmid[j][-1])
-                yprofave[j].append(yprof[j][-1])
+for i,line in enumerate(e):
+    if i>=sti and np.mod(i-sti,ite)==0:
+        if np.mod(i-sti,100*ite)==0:
+            print 'Probing the fields in the frame ',i,'('+str((i-sti)/ite)+')'
+            if dim:
+                print 'At time t=',x[4][0,i],'years'
             else:
-                y=yprofmidave[j][-1]+(yprofmid[j][-1]-yprofmidave[j][-1])/(i-sti)
-                yprofmidave[j].append(y)
-                y=yprofave[j][-1]+(yprof[j][-1]-yprofave[j][-1])/(i-sti)
-                yprofave[j].append(y)
-    if 'xprof' in Isel:
+                print 'At time t=',x[4][0,i],'timeunits'
+
+        y=line.split()
+        for i in range(1,amod+1):
+            psi[i-1]=float(y[i])
+            theta[i-1]=float(y[i+amod])
+        for i in range(omod):
+            aa[i]=float(y[1+2*amod+i])
+            tt[i]=float(y[1+2*amod+omod+i])
+
+        psi=psi*dimdv['psi']
+        theta=theta*dimdv['theta']
+        aa=aa*dimdv['A']
+        tt=tt*dimdv['T']
+        
+        Z=[]
+
+        if 'op' in Zsel:
+            Z[Zsel.index('op')]=ostream_cons(X,Y,aa)
+        if 'ot' in Zsel:
+            Z[Zsel.index('ot')]=ostream(X,Y,tt)
+        if 'at' in Zsel:
+            Z[Zsel.index('at')]=astream(X,Y,theta)
+        if 'ap' in Zsel:
+            Z[Zsel.index('ap')]=astream(X,Y,psi)
+
+        if 'uo' in Zsel or 'vo' in Zsel:
+            U,V=ovec(X,Y,aa/dimd['length'])
+            if 'uo' in Zsel:
+                Z[Zsel.index('uo')]=U
+            if 'vo' in Zsel:
+                Z[Zsel.index('vo')]=V
+
+        if 'ua' in Zsel or 'va' in Zsel:
+            U,V=avec(X,Y,psi*(dimd['strfunc']/(dimdv['psi']*dimd['length'])))
+            if 'ua' in Zsel:
+                Z[Zsel.index('ua')]=U
+            if 'va' in Zsel:
+                Z[Zsel.index('va')]=V
+
+        if 'ua1' in Zsel or 'va1' in Zsel or 'ua3' in Zsel or 'va3' in Zsel:
+            U,V=avec(X,Y,psi*(dimd['strfunc']/(dimdv['psi']*dimd['length'])))
+            U1,V1=avec(X,Y,theta*(dimd['strfunc']/(dimdv['theta']*dimd['length'])))
+            if 'ua1' in Zsel:
+                Z[Zsel.index('ua1')]=U+U1
+            if 'va1' in Zsel:
+                Z[Zsel.index('va1')]=V+V1
+            if 'ua3' in Zsel:
+                Z[Zsel.index('ua3')]=U-U1
+            if 'va3' in Zsel:
+                Z[Zsel.index('va3')]=V-V1
+
+        if 'p1' in Zsel or 'p3' in Zsel:
+            pp=astream(X,Y,psi*(dimd['strfunc']/dimdv['psi']))
+            pt=astream(X,Y,theta*(dimd['strfunc']/dimdv['theta']))
+            if 'p1' in Zsel:
+                Z[Zsel.index('p1')]=pp+pt
+            if 'p3' in Zsel:
+                Z[Zsel.index('p3')]=pp-pt
+
+        if 'dt' in Zsel:
+            Z[Zsel.index('dt')]=ostream(X,Y,x[3][:,i])-astream(X,Y,x[1][:,i]))
+
+        if 'ap1' in Zsel or 'ap3' in Zsel:
+            pp=astream(X,Y,psi)
+            pt=astream(X,Y,theta*(dimdv['psi']/dimdv['theta']))
+            if 'ap1' in Zsel:
+                Z[Zsel.index('p1')]=pp+pt
+            if 'ap3' in Zsel:
+                Z[Zsel.index('p3')]=pp-pt
+
+        if 'diff' in Isel:
+            if 'geo' in IIsel[Isel.index('diff')]:
+                geoap.append(geodiff(psi))
+
         for j in range(4):
-            xprof[j].append(np.mean(Z[j][-1],axis=0))
-            xprofmid[j].append(Z[j][-1][sh[0]/2,:])
-            if i==sti:
-                xprofmidave[j].append(xprofmid[j][-1])
-                xprofave[j].append(xprof[j][-1])
-            else:
-                y=xprofmidave[j][-1]+(xprofmid[j][-1]-xprofmidave[j][-1])/(i-sti)
-                xprofmidave[j].append(y)
-                y=xprofave[j][-1]+(xprof[j][-1]-xprofave[j][-1])/(i-sti)
-                xprofave[j].append(y)
-    if "mode" in Isel:
-        iii=0
-        for z in Isel:
-            if z=='mode':
-                za[iii].append(np.zeros(ss[iii]))
-                zk[iii].append(np.zeros(ss[iii]))
-                zl[iii].append(np.zeros(ss[iii]))
-                y=np.absolute(x[sd[sdd[IIsel[iii][0]]]][:,i])
-                y=100*y/y.sum()
-                for ii in range(1,len(y)+1):
-                    if 'a' in IIsel[iii][0]:
-                        af=aftable[ii]
-                    else:
-                        af=oftable[ii]
-                    if af['typ']=='A':
-                        za[iii][-1][af['Nxi'],af['Nyi']-1]=y[ii-1]
-                    elif af['typ']=='K':
-                        zk[iii][-1][af['Nxi']-1,af['Nyi']-1]=y[ii-1]
-                    elif af['typ']=='L':
-                        zl[iii][-1][af['Nxi']-1,af['Nyi']-1]=y[ii-1]
-                za[iii][-1] = za[iii][-1].T
-                za[iii][-1] += 1e-10
-                zk[iii][-1] = zk[iii][-1].T
-                zl[iii][-1] = zl[iii][-1].T
-                za[iii][-1]=za[iii][-1].flatten()
-                zk[iii][-1]=zk[iii][-1].flatten()
-                zl[iii][-1]=zl[iii][-1].flatten()
-                ifsmax[iii]=max(ifsmax[iii],np.amax(za[iii][-1]),np.amax(zk[iii][-1]),np.amax(zl[iii][-1]))
-            iii+=1
+            ZM[j].append(np.amax(Z[j][-1]))
+            Zm[j].append(np.amin(Z[j][-1]))
+
+        for j in range(4):
+            mmax[j]=max(mmax[j],ZM[j][-1])
+            mmin[j]=min(mmin[j],Zm[j][-1])
+
+        if 'yprof' in Isel:
+            for j in range(4):
+                yprof[j].append(np.mean(Z[j][-1],axis=1))
+                yprofmid[j].append(Z[j][-1][:,sh[1]/2])
+                if i==sti:
+                    yprofmidave[j].append(yprofmid[j][-1])
+                    yprofave[j].append(yprof[j][-1])
+                else:
+                    y=yprofmidave[j][-1]+(yprofmid[j][-1]-yprofmidave[j][-1])/(i-sti)
+                    yprofmidave[j].append(y)
+                    y=yprofave[j][-1]+(yprof[j][-1]-yprofave[j][-1])/(i-sti)
+                    yprofave[j].append(y)
+        if 'xprof' in Isel:
+            for j in range(4):
+                xprof[j].append(np.mean(Z[j][-1],axis=0))
+                xprofmid[j].append(Z[j][-1][sh[0]/2,:])
+                if i==sti:
+                    xprofmidave[j].append(xprofmid[j][-1])
+                    xprofave[j].append(xprof[j][-1])
+                else:
+                    y=xprofmidave[j][-1]+(xprofmid[j][-1]-xprofmidave[j][-1])/(i-sti)
+                    xprofmidave[j].append(y)
+                    y=xprofave[j][-1]+(xprof[j][-1]-xprofave[j][-1])/(i-sti)
+                    xprofave[j].append(y)
+        if "mode" in Isel:
+            iii=0
+            for z in Isel:
+                if z=='mode':
+                    za[iii].append(np.zeros(ss[iii]))
+                    zk[iii].append(np.zeros(ss[iii]))
+                    zl[iii].append(np.zeros(ss[iii]))
+                    y=np.absolute(x[sd[sdd[IIsel[iii][0]]]][:,i])
+                    y=100*y/y.sum()
+                    for ii in range(1,len(y)+1):
+                        if 'a' in IIsel[iii][0]:
+                            af=aftable[ii]
+                        else:
+                            af=oftable[ii]
+                        if af['typ']=='A':
+                            za[iii][-1][af['Nxi'],af['Nyi']-1]=y[ii-1]
+                        elif af['typ']=='K':
+                            zk[iii][-1][af['Nxi']-1,af['Nyi']-1]=y[ii-1]
+                        elif af['typ']=='L':
+                            zl[iii][-1][af['Nxi']-1,af['Nyi']-1]=y[ii-1]
+                    za[iii][-1] = za[iii][-1].T
+                    za[iii][-1] += 1e-10
+                    zk[iii][-1] = zk[iii][-1].T
+                    zl[iii][-1] = zl[iii][-1].T
+                    za[iii][-1]=za[iii][-1].flatten()
+                    zk[iii][-1]=zk[iii][-1].flatten()
+                    zl[iii][-1]=zl[iii][-1].flatten()
+                    ifsmax[iii]=max(ifsmax[iii],np.amax(za[iii][-1]),np.amax(zk[iii][-1]),np.amax(zl[iii][-1]))
+                iii+=1
+    if i>=ste:
+        break
 
     
 ZM=np.array(ZM)
@@ -1045,14 +1076,14 @@ if "3D" in Isel:
     axs=axm[Isel.index('3D')]
     mv=0.25 # Overflow factor
     smax=3*[-30000.]
-    x=sete[0]
-    smax[0]=max(smax[0],np.amax(x[sd[showp[0]]][n1[0],:]))
-    smax[1]=max(smax[1],np.amax(x[sd[showp2[0]]][n2[0],:]))
-    smax[2]=max(smax[2],np.amax(x[sd[showp3[0]]][n3[0],:]))
+    x=dserie[0]
+    smax[0]=max(smax[0],np.amax(x[0][0,:]))
+    smax[1]=max(smax[1],np.amax(x[0][1,:]))
+    smax[2]=max(smax[2],np.amax(x[0][2,:]))
     smin=smax[:]
-    smin[0]=min(smin[0],np.amin(x[sd[showp[0]]][n1[0],:]))
-    smin[1]=min(smin[1],np.amin(x[sd[showp2[0]]][n2[0],:]))
-    smin[2]=min(smin[2],np.amin(x[sd[showp3[0]]][n3[0],:]))
+    smin[0]=min(smin[0],np.amin(x[0][0,:]))
+    smin[1]=min(smin[1],np.amin(x[0][1,:]))
+    smin[2]=min(smin[2],np.amin(x[0][2,:]))
     dmm=[]
     for i in range(3):
         dmm.append(smax[i]-smin[i])
@@ -1084,7 +1115,6 @@ if "3D" in Isel:
         if x:
             jk+=1
             y=float(x.replace(u'\u2212',u'-'))
-            y=y/dimdv[showp[0]]
             if jk==1:
                 n=order(y)
             if abs(n)>2:
@@ -1123,7 +1153,6 @@ if "3D" in Isel:
         if x:
             jk+=1
             y=float(x.replace(u'\u2212',u'-'))
-            y=y/dimdv[showp2[0]]
             if jk==1:
                 n=order(y)
             if abs(n)>2:
@@ -1159,7 +1188,6 @@ if "3D" in Isel:
         if x:
             jk+=1
             y=float(x.replace(u'\u2212',u'-'))
-            y=y/dimdv[showp3[0]]
             if jk==1:
                 n=order(y)
             if abs(n)>2:
@@ -1358,9 +1386,11 @@ for x in Isel:
 # Attractor plot
 if "3D" in Isel:
     axs=axm[Isel.index('3D')]
-    x=sete[0]
-    axs.plot(x[sd[showp[0]]][n1[0],:],x[sd[showp2[0]]][n2[0],:],zs=x[sd[showp3[0]]][n3[0],:],marker=ms[0],linestyle=ls[0])#,label=fl[i])
+    x=dserie[0]
+    axs.plot(x[0][0,:],x[0][1,:],zs=x[0][2,:],marker=ms[0],linestyle=ls[0])#,label=fl[i])
     xpoint,=axs.plot([],[],zs=[],marker=',',linestyle='',color='r')#,label=fl[i])
+
+# Cleaned up to here - need to adapt animation loop !
 
 # Spatial plots
 
