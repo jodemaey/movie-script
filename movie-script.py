@@ -787,27 +787,30 @@ tt=np.zeros((omod))
 
 for i,line in enumerate(e):
     if i>=sti and np.mod(i-sti,ite)==0:
-        if np.mod(i-sti,100*ite)==0:
-            print 'Probing the fields in the frame ',i,'('+str((i-sti)/ite)+')'
-            if dim:
-                print 'At time t=',x[4][0,i],'years'
-            else:
-                print 'At time t=',x[4][0,i],'timeunits'
 
         y=line.split()
-        for i in range(1,amod+1):
-            psi[i-1]=float(y[i])
-            theta[i-1]=float(y[i+amod])
-        for i in range(omod):
-            aa[i]=float(y[1+2*amod+i])
-            tt[i]=float(y[1+2*amod+omod+i])
+
+        if np.mod(i-sti,100*ite)==0:
+            print 'Probing the fields in the frame ',i,'('+str((i-sti)/ite)+')'
+            z=float(y[0])
+            if dim:
+                print 'At time t=',z*dimdv['time'],'years'
+            else:
+                print 'At time t=',z,'timeunits'
+
+        for j in range(1,amod+1):
+            psi[j-1]=float(y[j])
+            theta[j-1]=float(y[j+amod])
+        for j in range(omod):
+            aa[j]=float(y[1+2*amod+j])
+            tt[j]=float(y[1+2*amod+omod+j])
 
         psi=psi*dimdv['psi']
         theta=theta*dimdv['theta']
         aa=aa*dimdv['A']
         tt=tt*dimdv['T']
         
-        Z=[]
+        Z=[None,None,None,None]
 
         if 'op' in Zsel:
             Z[Zsel.index('op')]=ostream_cons(X,Y,aa)
@@ -1393,6 +1396,14 @@ if "3D" in Isel:
 # Cleaned up to here - need to adapt animation loop !
 
 # Spatial plots
+
+e=evol[0]
+e.seek(0)
+
+for i,line in enumerate(e):
+    if i==sti:
+        break
+
 
 im2=ax3.imshow(Z[1][0],interpolation='bilinear', cmap=Zcm[Zsel[1]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[1],vmax=mmax[1]) 
 cl2=fig.colorbar(im2,ax=ax3,format=Zformat[Zsel[1]])
