@@ -3,9 +3,10 @@
 import warnings
 import numpy as np
 from geometry import geometry as geom
+from params import view
 
 if not geom.aset:
-    warnings.warn('Geometry not yet sets!',category=ImportWarning)
+    warnings.warn('Geometry not yet defined!',category=ImportWarning)
 
 
 #------------------------------------------------------------
@@ -143,57 +144,57 @@ def compute_frame(line):
 
     Z=[None,None,None,None]
 
-    if 'op' in Zsel:
-        Z[Zsel.index('op')]=ostream_cons(X,Y,aa)
-    if 'ot' in Zsel:
-        Z[Zsel.index('ot')]=ostream(X,Y,tt)
-    if 'at' in Zsel:
-        Z[Zsel.index('at')]=astream(X,Y,theta)
-    if 'ap' in Zsel:
-        Z[Zsel.index('ap')]=astream(X,Y,psi)
+    if 'op' in view.Zsel:
+        Z[view.Zsel.index('op')]=ostream_cons(X,Y,aa)
+    if 'ot' in view.Zsel:
+        Z[view.Zsel.index('ot')]=ostream(X,Y,tt)
+    if 'at' in view.Zsel:
+        Z[view.Zsel.index('at')]=astream(X,Y,theta)
+    if 'ap' in view.Zsel:
+        Z[view.Zsel.index('ap')]=astream(X,Y,psi)
 
-    if 'uo' in Zsel or 'vo' in Zsel:
+    if 'uo' in view.Zsel or 'vo' in view.Zsel:
         U,V=ovec(X,Y,aa/dimd['length'])
-        if 'uo' in Zsel:
-            Z[Zsel.index('uo')]=U
-        if 'vo' in Zsel:
-            Z[Zsel.index('vo')]=V
+        if 'uo' in view.Zsel:
+            Z[view.Zsel.index('uo')]=U
+        if 'vo' in view.Zsel:
+            Z[view.Zsel.index('vo')]=V
 
-    if 'ua' in Zsel or 'va' in Zsel:
+    if 'ua' in view.Zsel or 'va' in view.Zsel:
         U,V=avec(X,Y,psi*(dimd['strfunc']/(dimdv['psi']*dimd['length'])))
-        if 'ua' in Zsel:
-            Z[Zsel.index('ua')]=U
-        if 'va' in Zsel:
-            Z[Zsel.index('va')]=V
+        if 'ua' in view.Zsel:
+            Z[view.Zsel.index('ua')]=U
+        if 'va' in view.Zsel:
+            Z[view.Zsel.index('va')]=V
 
-    if 'ua1' in Zsel or 'va1' in Zsel or 'ua3' in Zsel or 'va3' in Zsel:
+    if 'ua1' in view.Zsel or 'va1' in view.Zsel or 'ua3' in view.Zsel or 'va3' in view.Zsel:
         U,V=avec(X,Y,psi*(dimd['strfunc']/(dimdv['psi']*dimd['length'])))
         U1,V1=avec(X,Y,theta*(dimd['strfunc']/(dimdv['theta']*dimd['length'])))
-        if 'ua1' in Zsel:
-            Z[Zsel.index('ua1')]=U+U1
-        if 'va1' in Zsel:
-            Z[Zsel.index('va1')]=V+V1
-        if 'ua3' in Zsel:
-            Z[Zsel.index('ua3')]=U-U1
-        if 'va3' in Zsel:
-            Z[Zsel.index('va3')]=V-V1
+        if 'ua1' in view.Zsel:
+            Z[view.Zsel.index('ua1')]=U+U1
+        if 'va1' in view.Zsel:
+            Z[view.Zsel.index('va1')]=V+V1
+        if 'ua3' in view.Zsel:
+            Z[view.Zsel.index('ua3')]=U-U1
+        if 'va3' in view.Zsel:
+            Z[view.Zsel.index('va3')]=V-V1
 
-    if 'p1' in Zsel or 'p3' in Zsel:
+    if 'p1' in view.Zsel or 'p3' in view.Zsel:
         pp=astream(X,Y,psi*(dimd['strfunc']/dimdv['psi']))
         pt=astream(X,Y,theta*(dimd['strfunc']/dimdv['theta']))
-        if 'p1' in Zsel:
-            Z[Zsel.index('p1')]=pp+pt
-        if 'p3' in Zsel:
-            Z[Zsel.index('p3')]=pp-pt
+        if 'p1' in view.Zsel:
+            Z[view.Zsel.index('p1')]=pp+pt
+        if 'p3' in view.Zsel:
+            Z[view.Zsel.index('p3')]=pp-pt
 
-    if 'dt' in Zsel:
-        Z[Zsel.index('dt')]=ostream(X,Y,x[3][:,i])-astream(X,Y,x[1][:,i]))
+    if 'dt' in view.Zsel:
+        Z[view.Zsel.index('dt')]=ostream(X,Y,x[3][:,i])-astream(X,Y,x[1][:,i])
 
-    if 'ap1' in Zsel or 'ap3' in Zsel:
+    if 'ap1' in view.Zsel or 'ap3' in view.Zsel:
         pp=astream(X,Y,psi)
         pt=astream(X,Y,theta*(dimdv['psi']/dimdv['theta']))
-        if 'ap1' in Zsel:
-            Z[Zsel.index('p1')]=pp+pt
-        if 'ap3' in Zsel:
-            Z[Zsel.index('p3')]=pp-pt
+        if 'ap1' in view.Zsel:
+            Z[view.Zsel.index('p1')]=pp+pt
+        if 'ap3' in view.Zsel:
+            Z[view.Zsel.index('p3')]=pp-pt
     return Z

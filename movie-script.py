@@ -40,166 +40,11 @@ import sys
 import subprocess
 
 import geometry as geom
-from geofunctions import *
+from geofunctions import compute_frame,geodiff
 from util import *
-
-#---------------------------------------------
-# Parameter section
-#---------------------------------------------
-
-# Organization of the figures layout
-#-----------------------------------
-
-# -----------------------------------
-# |  info1   |   2      |      4    |
-# -----------------------------------
-# |  info2   |   1      |      3    |
-# -----------------------------------
-# info1-2 : information views
-# 1--4 : spatial fields representations
-
-# Selection of the spatial fields
-#-----------------------------------
-
-# Zsel : List holding the displayed fields in the order of the layout
-# 
-# Available labels:   - at : atmospheric temperature at 500 mb
-#                     - ap : atmospheric pressure at 500 mb
-#                     - ot : oceanic temperature
-#                     - op : oceanic streamfunction
-#                     - p3 : atmospheric lower layer streamfunction psi^3
-#                     - p1 : atmospheric upper layer streamfunction psi^1
-#                     - ap3 : atmospheric pressure at 750 mb
-#                     - ap1 : atmospheric pressure at 250 mb
-#                     - dt : ocean-atmosphere temperature difference
-#                     - ua : atmospheric U wind component at 500 mb
-#                     - va : atmospheric V wind component at 500 mb
-#                     - uo : oceanic U current component
-#                     - vo : oceanic V current component
-#                     - ua1: atmospheric upper U wind component (250 mb)
-#                     - va1: atmospheric upper V wind component (250 mb)
-#                     - ua3: atmospheric lower U wind component (750 mb)
-#                     - va3: atmospheric lower V wind component (750 mb)
-
-
-Zsel=['ap','at','op','ot']
-
-# Selection of the 1-2 infoviews modes:
-#---------------------------------
-
-Isel=["diff","3D"] # first relates to info1, second to info2
-
-#Isel components can be : - diff : Difference plot of various quantities (i.e. geopot. height diff.)
-#                         - yprof : Profile of various quantities along the spatial direction y
-#                         - xprof : Profile of various quantities along the spatial direction x
-#                         - mode : Instaneous spectral modes contents
-#                         - 3D : 3D projection of the attractor, with locator (warning: both 
-#                                infoviews cannot be simultaneously in 3D mode)
-
-IIsel=[['geo'],[]]
-
-# IIsel : List holding the content to be shown in the infoviews
-#         Again, first list relates to info1, second to info2
-#
-# Available content:
-#     For the "diff" mode:
-#               - geo : Time evolution of the North-South geopotential height difference at 500mb 
-#               - sp(n): Difference between n-th displayed spatial field maximum and minimum
-#     For the "yprof" mode:
-#               - sp(n): Profile of the (n)-th displayed spatial field in the y spatial direction 
-#                         and at the middle of domain
-#               - spa(n): Profile of the (n)-th displayed spatial field in the y spatial direction
-#                         and averaged in the x direction
-#     For the "xprof" mode:
-#               - sp(n): Profile of the (n)-th displayed spatial field in the x spatial direction 
-#                         and at the middle of domain
-#               - spa(n): Profile of the (n)-th displayed spatial field in the x spatial direction
-#                         and averaged in the y direction
-#     For the "mode" mode, only one of the following:
-#               - op: Ocean streamfunction modes
-#               - ot: Ocean temperature modes
-#               - ap: Atmosphere streamfunction modes
-#               - at: Atmosphere temperature modes
-
-
-# Mailserver configuration (optional)
-#------------------------------------
-
-# Defining mail address from where and to which send mails
-# Not used if no addresses are defined
-
-fromaddr = ""
-toaddr = ""
-
-# Server to contact
-servername='localhost'
-
-# Setting of some general model parameters (those in general do not change)
-#--------------------------------------------------------------------------
-nr=1.5                   # aspect ratio
-f0=0.0001032             # Coriolis parameter
-L=5000000./np.pi         # characteristic spatial scale
-rpr=L**2*f0              # streamfunction scaling
-RR=287.                  # Gas constant of dry air
-RK=rpr*f0/RR             # Temperature scaling
-at=365.25                # Duration of a year in days
-ct=(1/(f0*24*3600))/at   # Time scaling from timeunits to years
-geo=f0/9.81              # Geopotential scaling in meters
-
-
-#--------------------------
-# Preparation
-#--------------------------
-
-# Asking for adimensionalization
-
-dim=raw_input('Adimensionalize? (y/N)')
-if dim in ['y','Y']:
-    dim=False
-else:
-    dim=True
-
-# Defining and ordering labels
-#-----------------------------
-
-Zlabel={'at':r"Atm. Temperature $\theta_a$",'ot':r'Ocean Temperature $\theta_o$','dt':'Oc.-Atm. Temperature diff.','ap':r'Atmospheric $\psi_a$','op':r'Ocean $\psi_o$','p3':r'Atm. low. layer $\psi_a^3$','p1':r'Atm. up. layer $\psi_a^1$','uo':'Ocean U current','vo':'Ocean V current','ua':'Atm. 500mb U wind','va':'Atm. 500mb V wind','ua3':'Atm. 750mb U wind','va3':'Atm. 750mb V wind','ua1':'Atm. 250mb U wind','va1':'Atm. 250mb V wind','ap3':r'Atm. low. layer $\psi_a^3$','ap1':r'Atm. up. layer $\psi_a^1$'}
-
-strm=r" (m$^2$s$^{-1}$)"
-strg=" (m)"
-strt=r"($^\circ\!$C)"
-strw=r" (ms$^{-1}$)"
-
-Zlabelunit={'at':strt,'ot':strt,'dt':"years",'ap':strg,'op':strm,'p3':strm,'p1':strm,'ua':strw,'va':strw,'uo':strw,'vo':strw,'ua3':strw,'va3':strw,'ua1':strw,'va1':strw,'ap3':strg,'ap1':strg}
-
-Zlabelmini={'at':"Atm. T$^\circ$",'ot':'Oc. T$^\circ$','dt':'Oc.-Atm. T$^\circ$ diff.','ap':r'Atm. $\psi_a$','op':r'Oc. $\psi_o$','p3':r'Atm. $\psi_a^3$','p1':r'Atm. $\psi_a^1$','ua':'Atm. U wind','va':'Atm. V wind','uo':'Ocean U current','vo':'Ocean V current','ua3':'Atm. low. U wind','va3':'Atm. low. V wind','ua1':'Atm. up. U wind','va1':'Atm. up. V wind','ap3':r'Atm. $\psi_a^3$','ap1':r'Atm. $\psi_a^1$'}
-
-Zlab=[]
-Zlabmini=[]
-for x in Zsel:
-    Zlab.append(Zlabel[x])
-    if dim:
-        Zlab[-1]+=Zlabelunit[x]
-    Zlabmini.append(Zlabelmini[x])
-
-#Defining some labels to be used later
-sdd={'ap':'psi','at':'theta','op':'A','ot':'T'}
-sd={'psi':0,'theta':1,'A':2,'T':3,'time':4}
-vl={'psi':r'\psi_{a,','theta':r'\theta_{a,','A':r'\psi_{o,','T':r'\theta_{o,','time':r't'}
-
-# Defining the dico of the dimensionalization
-if dim:
-    dimd={'geo':geo,'strfunc':rpr,'temp':RK,'timey':ct,'times':1/f0,'length':L}
-else:
-    dimd={'geo':1,'strfunc':1,'temp':1,'timey':1,'times':1,'length':1}
-
-# Defining the dico of the variables dimensionalization    
-dimdv={'psi':dimd['strfunc']*dimd['geo'],'theta':2*dimd['temp'],'A':dimd['strfunc'],'T':dimd['temp'],'time':dimd['timey']}
-
-# Infoview labels
-
-Ivtit={'diff':"Differences plot",'yprof':"Meridional profile",'xprof':"Zonal profile","mode":r"% Modes distribution","3D":'3-D phase space projection'}
- 
-
+from params import *
+params_initialize()
+#-----------------------------------------------------------
 # Loading the geometries given as arguments or by the users
 #-----------------------------------------------------------
 
@@ -261,10 +106,7 @@ dty=(x2-x1)*dimd['timey']
 # Data for the 3D mode (if selected)
 #------------------------------------------------
 
-# Index of the components in the data
-sdi={'psi':1,'theta':amod+1,'A':2*amod+1,'T':2*amod+omod+1,'time':0}
-
-if "3D" in Isel:
+if "3D" in view.Isel:
 
     # Asking the user from which line to which line he want to read
     # providing a gross (experimental) estimation of what it will take in the memory
@@ -396,8 +238,6 @@ if "3D" in Isel:
 # Spatial fields computation
 #------------------------------
 
-startt=time.time()
-
 # Setting the grids
 delta=raw_input('Space between points on the grid (default = 0.025) ?') 
 if not delta:
@@ -450,6 +290,8 @@ while True:
 #------------------------------------------------------------
 # First loop : Computing the fields extremums and derivatives
 #------------------------------------------------------------
+
+startt=time.time()
 
 print "Computing fields extermums..."
 print "This may take a while..."
@@ -511,11 +353,11 @@ z0=[None,None]
 
 ss=[None,None]
 
-if 'mode' in Isel:
+if 'mode' in view.Isel:
     ii=0
-    for z in Isel:
+    for z in view.Isel:
         if z=='mode':
-            if 'a' in IIsel[ii][0]:
+            if 'a' in view.IIsel[ii][0]:
                 ss[ii]=ass
             else:
                 ss[ii]=oss
@@ -557,8 +399,8 @@ for i,line in enumerate(e):
 
         Z=compute_frame(line)
 
-        if 'diff' in Isel:
-            if 'geo' in IIsel[Isel.index('diff')]:
+        if 'diff' in view.Isel:
+            if 'geo' in view.IIsel[view.Isel.index('diff')]:
                 geoap.append(geodiff(psi))
 
         for j in range(4):
@@ -569,7 +411,7 @@ for i,line in enumerate(e):
             mmax[j]=max(mmax[j],ZM[j])
             mmin[j]=min(mmin[j],Zm[j])
 
-        if 'yprof' in Isel:
+        if 'yprof' in view.Isel:
             for j in range(4):
                 yprof[j].append(np.mean(Z[j],axis=1))
                 yprofmid[j].append(Z[j][:,sh[1]/2])
@@ -581,7 +423,7 @@ for i,line in enumerate(e):
                     yprofmidave[j].append(y)
                     y=yprofave[j][-1]+(yprof[j][-1]-yprofave[j][-1])/(i-sti)
                     yprofave[j].append(y)
-        if 'xprof' in Isel:
+        if 'xprof' in view.Isel:
             for j in range(4):
                 xprof[j].append(np.mean(Z[j],axis=0))
                 xprofmid[j].append(Z[j][sh[0]/2,:])
@@ -593,17 +435,17 @@ for i,line in enumerate(e):
                     xprofmidave[j].append(y)
                     y=xprofave[j][-1]+(xprof[j][-1]-xprofave[j][-1])/(i-sti)
                     xprofave[j].append(y)
-        if "mode" in Isel:
+        if "mode" in view.Isel:
             iii=0
-            for z in Isel:
+            for z in view.Isel:
                 if z=='mode':
                     za[iii].append(np.zeros(ss[iii]))
                     zk[iii].append(np.zeros(ss[iii]))
                     zl[iii].append(np.zeros(ss[iii]))
-                    y=np.absolute(x[sd[sdd[IIsel[iii][0]]]][:,i])
+                    y=np.absolute(x[sd[sdd[view.IIsel[iii][0]]]][:,i])
                     y=100*y/y.sum()
                     for ii in range(1,len(y)+1):
-                        if 'a' in IIsel[iii][0]:
+                        if 'a' in view.IIsel[iii][0]:
                             af=aftable[ii]
                         else:
                             af=oftable[ii]
@@ -628,34 +470,34 @@ for i,line in enumerate(e):
     
 ZM=np.array(ZM)
 Zm=np.array(Zm)
-if 'diff' in Isel:
-    if 'geo' in IIsel[Isel.index('diff')]:
+if 'diff' in view.Isel:
+    if 'geo' in view.IIsel[view.Isel.index('diff')]:
         geoap=np.array(geoap)
 
-if "diff" in Isel:
+if "diff" in view.Isel:
     diff=[[],[]]
     difflab=[[],[]]
 
-if "yprof" in Isel:
+if "yprof" in view.Isel:
     prof=[[],[]]
     profave=[[],[]]
     proflab=[[],[]]
 
-if "xprof" in Isel:
+if "xprof" in view.Isel:
     prof2=[[],[]]
     prof2ave=[[],[]]
     prof2lab=[[],[]]
 
 ii=0
-for z in Isel:
+for z in view.Isel:
     if z=="diff":
-        for x in IIsel[ii]:
+        for x in view.IIsel[ii]:
             if 'sp' in x:
                 i=int(x[2])-1
                 diff[ii].append(ZM[i]-Zm[i])
                 difflab[ii].append(Zlabmini[i])
                 if dim:
-                    difflab[ii][-1]+=Zlabelunit[Zsel[i]]
+                    difflab[ii][-1]+=Zlabelunit[view.Zsel[i]]
             if x=='geo':
                 diff[ii].append(geoap)
                 difflab[ii].append('Geop. H.')
@@ -665,21 +507,21 @@ for z in Isel:
         ifsmax[ii]=max(map(np.amax,diff[ii]))
         ifsmin[ii]=min(map(np.amin,diff[ii]))
     if z=="yprof":
-        for x in IIsel[ii]:
+        for x in view.IIsel[ii]:
             if 'spa' in x:
                 i=int(x[3])-1
                 prof[ii].append(yprof[i])
                 profave[ii].append(yprofave[i])
                 proflab[ii].append('Z.A. '+Zlabmini[i])
                 if dim:
-                    proflab[ii][-1]+=Zlabelunit[Zsel[i]]
+                    proflab[ii][-1]+=Zlabelunit[view.Zsel[i]]
             elif 'sp' in x:
                 i=int(x[2])-1
                 prof[ii].append(yprofmid[i])
                 profave[ii].append(yprofmidave[i])
                 proflab[ii].append(Zlabmini[i])
                 if dim:
-                    proflab[ii][-1]+=Zlabelunit[Zsel[i]]
+                    proflab[ii][-1]+=Zlabelunit[view.Zsel[i]]
         ifsmax[ii]=[]
         ifsmin[ii]=[]
         for x in prof[ii]:
@@ -688,21 +530,21 @@ for z in Isel:
         ifsmax[ii]=max(ifsmax[ii])
         ifsmin[ii]=min(ifsmin[ii])
     if z=="xprof":
-        for x in IIsel[ii]:
+        for x in view.IIsel[ii]:
             if 'spa' in x:
                 i=int(x[3])-1
                 prof2[ii].append(xprof[i])
                 prof2ave[ii].append(xprofave[i])
                 prof2lab[ii].append('Z.A. '+Zlabmini[i])
                 if dim:
-                    prof2lab[ii][-1]+=Zlabelunit[Zsel[i]]
+                    prof2lab[ii][-1]+=Zlabelunit[view.Zsel[i]]
             elif 'sp' in x:
                 i=int(x[2])-1
                 prof2[ii].append(xprofmid[i])
                 prof2ave[ii].append(xprofmidave[i])
                 prof2lab[ii].append(Zlabmini[i])
                 if dim:
-                    prof2lab[ii][-1]+=Zlabelunit[Zsel[i]]
+                    prof2lab[ii][-1]+=Zlabelunit[view.Zsel[i]]
         ifsmax[ii]=[]
         ifsmin[ii]=[]
         for x in prof2[ii]:
@@ -729,11 +571,11 @@ fig.text(0.42,0.92,'Resolution : '+suptit)
 
 # Setting the six views
 
-if Isel[0] in ["3D","mode"]:
+if view.Isel[0] in ["3D","mode"]:
     ax1=fig.add_subplot(2,3,1,projection='3d')
 else:
     ax1=fig.add_subplot(2,3,1)
-if Isel[1] in ["3D","mode"]:
+if view.Isel[1] in ["3D","mode"]:
     ax2=fig.add_subplot(2,3,4,projection='3d')
 else:
     ax2=fig.add_subplot(2,3,4)
@@ -744,15 +586,15 @@ ax6=fig.add_subplot(2,3,6)
 
 # Views title
 
-ax1.set_title(Ivtit[Isel[0]])
-if Isel[0]=="mode":
-    ax1.text2D(0.5, 0.9,Zlabelmini[IIsel[0][0]], horizontalalignment='center',verticalalignment='center',transform=ax1.transAxes,fontdict={'size':12})
-if Isel[0]=="3D":
+ax1.set_title(Ivtit[view.Isel[0]])
+if view.Isel[0]=="mode":
+    ax1.text2D(0.5, 0.9,Zlabelmini[view.IIsel[0][0]], horizontalalignment='center',verticalalignment='center',transform=ax1.transAxes,fontdict={'size':12})
+if view.Isel[0]=="3D":
     ax1.text2D(0.5, 0.9,'(Non-dimensional units)', horizontalalignment='center',verticalalignment='center',transform=ax1.transAxes,fontdict={'size':12})
-ax2.set_title(Ivtit[Isel[1]])
-if Isel[1]=="mode":
-    ax2.text2D(0.5, 0.9,Zlabelmini[IIsel[1][0]], horizontalalignment='center',verticalalignment='center',transform=ax2.transAxes,fontdict={'size':12})
-if Isel[1]=="3D":
+ax2.set_title(Ivtit[view.Isel[1]])
+if view.Isel[1]=="mode":
+    ax2.text2D(0.5, 0.9,Zlabelmini[view.IIsel[1][0]], horizontalalignment='center',verticalalignment='center',transform=ax2.transAxes,fontdict={'size':12})
+if view.Isel[1]=="3D":
     ax2.text2D(0.5, 0.9,'(Non-dimensional units)', horizontalalignment='center',verticalalignment='center',transform=ax2.transAxes,fontdict={'size':12})
 
 ax3.set_title(Zlab[1])
@@ -766,8 +608,8 @@ axm=[ax1,ax2]
 #----------------------------------
 
 # Range
-if "3D" in Isel:
-    axs=axm[Isel.index('3D')]
+if "3D" in view.Isel:
+    axs=axm[view.Isel.index('3D')]
     mv=0.25 # Overflow factor
     smax=3*[-30000.]
     x=dserie[0]
@@ -935,7 +777,7 @@ ax6.set_ylabel('$y^\prime$')
 # Setting the limit of the infoview
 #-------------------------------------------------------
 i=0
-for x in Isel:
+for x in view.Isel:
     axs=axm[i]
     if x=="diff":
         axs.set_xlim(0.,sete[0][4][0,ste-1]-sete[0][4][0,sti])
@@ -978,7 +820,7 @@ pk=[None,None]
 pl=[None,None]
 dx=[None,None]
 dy=[None,None]
-for x in Isel:
+for x in view.Isel:
     axs=axm[ii]
     if x=="diff":
         for i in range(len(diff[ii])):
@@ -1019,7 +861,7 @@ for x in Isel:
         axs.plot([],[],color='k',ls=':',label='Time ave.')
         axs.legend(fontsize=12)
     if x=='mode':
-         if 'a' in IIsel[ii][0]:
+         if 'a' in view.IIsel[ii][0]:
              axs.set_xlabel('\n\n'+r'$M,\, H$',fontdict={'size':12})
              axs.set_ylabel('\n\n'+r'$P$',fontdict={'size':12})
              lnx=np.arange(ss[ii][0]+1)-1.25
@@ -1049,7 +891,7 @@ for x in Isel:
          axs.set_yticks(lny)
          axs.set_yticklabels(nyl)
          axs.tick_params(axis='both',labelsize=10)
-         if 'a' in IIsel[ii][0]:
+         if 'a' in view.IIsel[ii][0]:
              axl=fig.add_axes([0.12,0.77-ii*0.45,0.085,0.075],projection='3d')
              axl.set_axis_off()
              axl.view_init(elev=12,azim=98)
@@ -1078,8 +920,8 @@ for x in Isel:
 
 
 # Attractor plot
-if "3D" in Isel:
-    axs=axm[Isel.index('3D')]
+if "3D" in view.Isel:
+    axs=axm[view.Isel.index('3D')]
     x=dserie[0]
     axs.plot(x[0][0,:],x[0][1,:],zs=x[0][2,:],marker=ms[0],linestyle=ls[0])#,label=fl[i])
     xpoint,=axs.plot([],[],zs=[],marker=',',linestyle='',color='r')#,label=fl[i])
@@ -1094,32 +936,23 @@ for i, line in enumerate(e):
     if i==sti:
         break
 
-# Cleaned up to here - need to adapt animation loop !
+Z=compute_frame(line)
 
-im2=ax3.imshow(Z[1][0],interpolation='bilinear', cmap=Zcm[Zsel[1]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[1],vmax=mmax[1]) 
-cl2=fig.colorbar(im2,ax=ax3,format=Zformat[Zsel[1]])
+im2=ax3.imshow(Z[1],interpolation='bilinear', cmap=Zcm[view.Zsel[1]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[1],vmax=mmax[1]) 
+cl2=fig.colorbar(im2,ax=ax3,format=Zformat[view.Zsel[1]])
 
-im1=ax4.imshow(Z[3][0],interpolation='bilinear', cmap=Zcm[Zsel[3]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[3],vmax=mmax[3])
-cl1=fig.colorbar(im1,ax=ax4,format=Zformat[Zsel[3]])
+im1=ax4.imshow(Z[3],interpolation='bilinear', cmap=Zcm[view.Zsel[3]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[3],vmax=mmax[3])
+cl1=fig.colorbar(im1,ax=ax4,format=Zformat[view.Zsel[3]])
 
-im3=ax5.imshow(Z[0][0],interpolation='bilinear', cmap=Zcm[Zsel[0]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[0],vmax=mmax[0])
-cl3=fig.colorbar(im3,ax=ax5,format=Zformat[Zsel[0]])
+im3=ax5.imshow(Z[0],interpolation='bilinear', cmap=Zcm[view.Zsel[0]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[0],vmax=mmax[0])
+cl3=fig.colorbar(im3,ax=ax5,format=Zformat[view.Zsel[0]])
 
-im0=ax6.imshow(Z[2][0],interpolation='bilinear', cmap=Zcm[Zsel[2]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[2],vmax=mmax[2]) # ,label='year '+str(ny))
-cl0=fig.colorbar(im0,ax=ax6,format=Zformat[Zsel[2]])
+im0=ax6.imshow(Z[2],interpolation='bilinear', cmap=Zcm[view.Zsel[2]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[2],vmax=mmax[2]) # ,label='year '+str(ny))
+cl0=fig.colorbar(im0,ax=ax6,format=Zformat[view.Zsel[2]])
 
 # im0=ax6.streamplot(X,Y,Uop[0],Vop[0],color=np.sqrt(Uop[0]**2+Vop[0]**2),linewidth=2,cmap=cm.Reds)
 
 # im0=ax6.quiver(X,Y,Uop[0],Vop[0])
-
-# Pruning data not needed.
-
-for i in range(len(sete[0])):
-    sete[0][i]=sete[0][i][:,sti:ste:ite]
-
-# Shifting the time
-
-sete[0][4]=sete[0][4]-sete[0][4][0,0]
 
 # Setting tick locator for the fields plots
 
@@ -1133,28 +966,35 @@ ax4.yaxis.set_major_locator(ticker.MultipleLocator(1.0))
 ax5.yaxis.set_major_locator(ticker.MultipleLocator(1.0))
 ax6.yaxis.set_major_locator(ticker.MultipleLocator(1.0))
 
+#Pruning unneeded data
+
+for i in range(len(dserie[0])):
+    dserie[0][i]=dserie[0][i][:,sti:ste+1:ite]
+
+print len(dserie[0][i][1,:])
+print len(ZM[0])
 
 # Defining the animation update function
 
 def animate(l):
-    if l==1 and "3D" in Isel:
+    if l==1 and "3D" in view.Isel:
         xpoint.set_marker('o')
     if np.mod(l,100)==0:
         print l
 
-    if "3D" in Isel or 'diff' in Isel: 
-        x=sete[0]  
+    if "3D" in view.Isel or 'diff' in view.Isel: 
+        x=dserie[0]  
 
-    if "3D" in Isel: #update of the attractor plot locator
-        xpoint.set_data(x[sd[showp[0]]][n1[0],l:l+1],x[sd[showp2[0]]][n2[0],l:l+1])
-        xpoint.set_3d_properties(x[sd[showp3[0]]][n3[0],l:l+1])
+    if "3D" in view.Isel: #update of the attractor plot locator
+        xpoint.set_data(x[0][0,l:l+1],x[0][1,l:l+1])
+        xpoint.set_3d_properties(x[0][2,l:l+1])
     
     # Update of the info view
     ii=0
-    for z in Isel:
+    for z in view.Isel:
         if z=='diff':
             for j in range(len(diff[ii])):
-                xrlines[ii][j].set_xdata(x[4][0,:l+1:ival])
+                xrlines[ii][j].set_xdata(x[1][0,:l+1:ival])
                 xrlines[ii][j].set_ydata(diff[ii][j][:l+1:ival])
         if z=='yprof':
             for j in range(len(prof[ii])):
@@ -1178,23 +1018,26 @@ def animate(l):
     # ax6.cla()
     # # im0=ax6.streamplot(X,Y,Uop[l],Vop[l],color=np.sqrt(Uop[l]**2+Vop[l]**2),linewidth=2,cmap=cm.Reds)
     # im0=ax6.quiver(X,Y,Uop[l],Vop[l])
-    im2.set_data(Z[1][l])
+    line=e.readline()
+    Z=compute_frame(line)
+
+    im2.set_data(Z[1])
     cl2.on_mappable_changed(im2)
-    im1.set_data(Z[3][l])
+    im1.set_data(Z[3])
     cl1.on_mappable_changed(im1)
-    im3.set_data(Z[0][l])
+    im3.set_data(Z[0])
     cl3.on_mappable_changed(im3)
-    im0.set_data(Z[2][l])
+    im0.set_data(Z[2])
     cl0.on_mappable_changed(im0)
 
     r=[im0,im1,im2,im3]
-    if '3D' in Isel:
+    if '3D' in view.Isel:
         r.insert(0,xpoint)
-    if 'xprof' in Isel or 'yprof' in Isel:
+    if 'xprof' in view.Isel or 'yprof' in view.Isel:
         r.insert(0,xralines)
-    if 'diff'in Isel or 'xprof' in Isel or 'yprof' in Isel:
+    if 'diff'in view.Isel or 'xprof' in view.Isel or 'yprof' in view.Isel:
         r.insert(0,xrlines)
-    if 'mode' in Isel:
+    if 'mode' in view.Isel:
         r.insert(0,pl)
         r.insert(0,pk)
         r.insert(0,pa)
