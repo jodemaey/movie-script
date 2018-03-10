@@ -39,6 +39,10 @@ import gzip
 import sys
 import subprocess
 
+import geometry as geom
+from geofunctions import *
+from util import *
+
 #---------------------------------------------
 # Parameter section
 #---------------------------------------------
@@ -194,85 +198,6 @@ dimdv={'psi':dimd['strfunc']*dimd['geo'],'theta':2*dimd['temp'],'A':dimd['strfun
 # Infoview labels
 
 Ivtit={'diff':"Differences plot",'yprof':"Meridional profile",'xprof':"Zonal profile","mode":r"% Modes distribution","3D":'3-D phase space projection'}
-
-
-# Utility functions
-#------------------
-
-#Count the number of line of a file
-def linecount(filename):
-    if filename[-3:]=='.gz':
-        lines = 0
-        with gzip.open(filename, "r+") as f:
-            for x in f:
-                lines += 1
-    else:
-        lines=int(subprocess.Popen("cat "+filename+" | wc -l", shell=True, stdout=subprocess.PIPE).stdout.read())
-    return lines
-
-# Gives the order of a number
-def order(n):
-    if n==0.:
-	return 0
-    h=np.abs(n)
-    if h<1.:
-        return int(np.log10(h))-1
-    else:
-        return int(np.log10(h))+1
-
-# Formating function to be used by matplotlib
-
-def fmt(x, pos):
-    a, b = '{:.2e}'.format(x).split('e')
-    b = int(b)
-    if x==0.:
-	return u'0'
-    elif x<0.:
-        return unicode(r'{}$\times 10^{{{}}}$'.format(a, b)).replace(u'-',u'\u2212',1)
-    else:
-        return unicode(r'{}$\times 10^{{{}}}$'.format(a, b))
-
-strf=ticker.FuncFormatter(fmt)
-
-if dim:
-    Zformat={'at':None,'ot':None,'dt':None,'ap':None,'op':strf,'p3':strf,'p1':strf,'ua':None,'va':None,'uo':None,'vo':None,'ua3':None,'va3':None,'ua1':None,'va1':None,'ap3':None,'ap1':None}
-else:
-    Zformat={'at':None,'ot':None,'dt':None,'ap':None,'op':None,'p3':None,'p1':None,'ua':None,'va':None,'uo':None,'vo':None,'ua3':None,'va3':None,'ua1':None,'va1':None,'ap3':None,'ap1':None}
-
-Zcm={'at':cm.coolwarm,'ot':cm.coolwarm,'dt':cm.coolwarm,'ap':cm.gist_rainbow_r,'op':cm.gist_rainbow_r,'p3':cm.jet,'p1':cm.jet,'ua':cm.hsv_r,'va':cm.hsv_r,'uo':cm.hsv_r,'vo':cm.hsv_r,'ua3':cm.hsv_r,'va3':cm.hsv_r,'ua1':cm.hsv_r,'va1':cm.hsv_r,'ap3':cm.jet,'ap1':cm.jet}
-
-# Update function for the bar3D plot
-
-def update_Poly3D(p, x, y, z, dx, dy, dz):
-    minx, miny, minz = 1e20, 1e20, 1e20
-    maxx, maxy, maxz = -1e20, -1e20, -1e20
-
-    polys = []
-    for xi, yi, zi, dxi, dyi, dzi in zip(x, y, z, dx, dy, dz):
-        minx = min(xi, minx)
-        maxx = max(xi + dxi, maxx)
-        miny = min(yi, miny)
-        maxy = max(yi + dyi, maxy)
-        minz = min(zi, minz)
-        maxz = max(zi + dzi, maxz)
-
-        polys.extend([
-            ((xi, yi, zi), (xi + dxi, yi, zi),
-                (xi + dxi, yi + dyi, zi), (xi, yi + dyi, zi)),
-            ((xi, yi, zi + dzi), (xi + dxi, yi, zi + dzi),
-                (xi + dxi, yi + dyi, zi + dzi), (xi, yi + dyi, zi + dzi)),
-
-            ((xi, yi, zi), (xi + dxi, yi, zi),
-                (xi + dxi, yi, zi + dzi), (xi, yi, zi + dzi)),
-            ((xi, yi + dyi, zi), (xi + dxi, yi + dyi, zi),
-                (xi + dxi, yi + dyi, zi + dzi), (xi, yi + dyi, zi + dzi)),
-
-            ((xi, yi, zi), (xi, yi + dyi, zi),
-                (xi, yi + dyi, zi + dzi), (xi, yi, zi + dzi)),
-            ((xi + dxi, yi, zi), (xi + dxi, yi + dyi, zi),
-                (xi + dxi, yi + dyi, zi + dzi), (xi + dxi, yi, zi + dzi)),
-        ])
-    p.set_verts(polys)
  
 
 # Loading the geometries given as arguments or by the users
@@ -290,168 +215,12 @@ if not ageom:
 if not ogeom:
     ogeom='2x4'
 
-ass=map(int,ageom.split('x'))
-oss=map(int,ogeom.split('x'))
-
-ams=[[i,j] for i in range(1,ass[0]+1) for j in range(1,ass[1]+1)]
-oms=[[i,j] for i in range(1,oss[0]+1) for j in range(1,oss[1]+1)]
-
-amod=2*ass[0]*ass[1]+ass[1]
-omod=oss[0]*oss[1]
-# print ams
-# print oms
-# print amod,omod
-
-ndim=amod*2+omod*2
-
-# Compute the relation table functions index -> functions wavenumbers and type
-aftable={}
-ii=0
-for w in ams:
-    if w[0]==1:
-        ii+=1
-        x={'typ':'A','Nx':0,'Ny':w[1],'Nxi':0,'Nyi':w[1]}
-        aftable[ii]=x
-        ii+=1
-        x={'typ':'K','Nx':w[0],'Ny':w[1],'Nxi':w[0],'Nyi':w[1]}
-        aftable[ii]=x
-        ii+=1
-        x={'typ':'L','Nx':w[0],'Ny':w[1],'Nxi':w[0],'Nyi':w[1]}
-        aftable[ii]=x
-    else:
-        ii+=1
-        x={'typ':'K','Nx':w[0],'Ny':w[1],'Nxi':w[0],'Nyi':w[1]}
-        aftable[ii]=x
-        ii+=1
-        x={'typ':'L','Nx':w[0],'Ny':w[1],'Nxi':w[0],'Nyi':w[1]}
-        aftable[ii]=x
+geom.set_geometry(ageom,ogeom)
 
 
-oftable={}
-ii=0
-for w in oms:
-    ii+=1
-    x={'typ':'L','Nx':w[0]/2.,'Ny':w[1],'Nxi':w[0],'Nyi':w[1]}
-    oftable[ii]=x
-
-
-# Defining the basis functions and their partial derivatives
-#------------------------------------------------------------
-
-# For the atmosphere
-def Fi(i,x,y):
-    w=aftable[i]
-    Nx=w['Nx']
-    Ny=w['Ny']
-    if w['typ']=='A':
-        return np.sqrt(2)*np.cos(Ny*y)
-    elif w['typ']=='K':
-        return 2*np.cos(nr*Nx*x)*np.sin(Ny*y)
-    else:
-        return 2*np.sin(nr*Nx*x)*np.sin(Ny*y)
-
-# Partial derivatives
-def dxFi(i,x,y):  # in x
-    w=aftable[i]
-    Nx=w['Nx']
-    Ny=w['Ny']
-    if w['typ']=='A':
-        return 0 #np.sqrt(2)*np.cos(Ny*y)
-    elif w['typ']=='K':
-        return -2*nr*Nx*np.sin(nr*Nx*x)*np.sin(Ny*y) #2*np.cos(nr*Nx*x)*np.sin(Ny*y)
-    else:
-        return 2*nr*Nx*np.cos(nr*Nx*x)*np.sin(Ny*y) #2*np.sin(nr*Nx*x)*np.sin(Ny*y)
-
-def dyFi(i,x,y):  # in y
-    w=aftable[i]
-    Nx=w['Nx']
-    Ny=w['Ny']
-    if w['typ']=='A':
-        return -Ny*np.sqrt(2)*np.sin(Ny*y) #np.sqrt(2)*np.cos(Ny*y)
-    elif w['typ']=='K':
-        return 2*Ny*np.cos(nr*Nx*x)*np.cos(Ny*y) #2*np.cos(nr*Nx*x)*np.sin(Ny*y)
-    else:
-        return 2*Ny*np.sin(nr*Nx*x)*np.cos(Ny*y) #2*np.sin(nr*Nx*x)*np.sin(Ny*y)
-
-# For the ocean
-def phi(i,x,y):
-    w=oftable[i]
-    Nx=w['Nx']
-    Ny=w['Ny']
-    return 2*np.sin(nr*Nx*x)*np.sin(Ny*y)
-
-# Partial derivatives
-def dxphi(i,x,y): # in x
-    w=oftable[i]
-    Nx=w['Nx']
-    Ny=w['Ny']
-    return 2*nr*Nx*np.cos(nr*Nx*x)*np.sin(Ny*y) #2*np.exp(-al*x)*np.sin(nr*Nx*x)*np.sin(Ny*y)
-
-def dyphi(i,x,y):
-    w=oftable[i]
-    Nx=w['Nx']
-    Ny=w['Ny']
-    return 2*Ny*np.sin(nr*Nx*x)*np.cos(Ny*y) #2*np.exp(-al*x)*np.sin(nr*Nx*x)*np.sin(Ny*y)
-
-# Function returning the fields based on the coefficients
-# ---------------------------------------------------------
-
-# For the atmospheric streamfunction
-def astream(x,y,pt):
-    Z=pt[0]*Fi(1,x,y)
-    for i in range(1,amod):
-        Z+=pt[i]*Fi(i+1,x,y)
-    return Z
-
-# For the atmospheric wind fields
-def avec(x,y,pt):
-    U=-pt[0]*dyFi(1,x,y)
-    V=pt[0]*dxFi(1,x,y)
-    for i in range(1,amod):
-        U-=pt[i]*dyFi(i+1,x,y)
-        V+=pt[i]*dxFi(i+1,x,y)
-    return U,V
-
-# Average of the oceanic basis functions (used to maintain mass conservation)
-def Ci(i):
-    w=oftable[i]
-    Nx=w['Nx']
-    Ny=w['Ny']
-
-    return 2*(-1 + (-1)**(Nx*2))*(-1 + (-1)**Ny)/((Nx*2)*Ny*np.pi**2)
-    
-# Oceanic conserved fields
-def ostream_cons(x,y,a):
-    Z=a[0]*phi(1,x,y)-a[0]*Ci(1)
-    for i in range(1,omod):
-        Z+=a[i]*phi(i+1,x,y)-a[i]*Ci(i+1)
-    return Z
-
-# Oceanic non-conserved fields (used to compute the temperature fields)
-def ostream(x,y,a):
-    Z=a[0]*phi(1,x,y)
-    for i in range(1,omod):
-        Z+=a[i]*phi(i+1,x,y)
-    return Z
-
-# Oceanic current vector field
-def ovec(x,y,a):
-    U=-a[0]*dyphi(1,x,y)
-    V=+a[0]*dxphi(1,x,y)
-    for i in range(1,omod):
-        U-=a[i]*dyphi(i+1,x,y)
-        V+=a[i]*dxphi(i+1,x,y)
-    return U,V
-
-# Function that return the geopotential height difference
-# between North (pi/n,3pi/4) and South (pi/n,pi/4)
-def geodiff(pt):
-    Zn=pt[0]*Fi(1,np.pi/nr,3*np.pi/4)
-    Zs=pt[0]*Fi(1,np.pi/nr,np.pi/4)
-    for i in range(1,amod):
-        Zn+=pt[i]*Fi(i+1,np.pi/nr,3*np.pi/4)
-        Zs+=pt[i]*Fi(i+1,np.pi/nr,np.pi/4)
-    return Zs-Zn
+#----------------------------------------
+# Opening files
+#-----------------------------------------
 
 # User specification of the data file
 if len(sys.argv)==2 or len(sys.argv)==4:
@@ -460,11 +229,6 @@ if len(sys.argv)==2 or len(sys.argv)==4:
 else:
     print "No data filename specified as argument."
     s=raw_input('Filename of the data ?')
-
-
-#----------------------------------------
-# Opening files
-#-----------------------------------------
 
 # Possible legend for the data (not used in general)
 #leg=raw_input('Legende?')
@@ -780,108 +544,35 @@ ifsmin=[None,None]
 e=evol[0]
 e.seek(0)
 
-psi=np.zeros((amod))
-theta=np.zeros((amod))
-aa=np.zeros((omod))
-tt=np.zeros((omod))
-
 for i,line in enumerate(e):
     if i>=sti and np.mod(i-sti,ite)==0:
 
-        y=line.split()
-
         if np.mod(i-sti,100*ite)==0:
             print 'Probing the fields in the frame ',i,'('+str((i-sti)/ite)+')'
-            z=float(y[0])
+            z=float(line.split()[0])
             if dim:
                 print 'At time t=',z*dimdv['time'],'years'
             else:
                 print 'At time t=',z,'timeunits'
 
-        for j in range(1,amod+1):
-            psi[j-1]=float(y[j])
-            theta[j-1]=float(y[j+amod])
-        for j in range(omod):
-            aa[j]=float(y[1+2*amod+j])
-            tt[j]=float(y[1+2*amod+omod+j])
-
-        psi=psi*dimdv['psi']
-        theta=theta*dimdv['theta']
-        aa=aa*dimdv['A']
-        tt=tt*dimdv['T']
-        
-        Z=[None,None,None,None]
-
-        if 'op' in Zsel:
-            Z[Zsel.index('op')]=ostream_cons(X,Y,aa)
-        if 'ot' in Zsel:
-            Z[Zsel.index('ot')]=ostream(X,Y,tt)
-        if 'at' in Zsel:
-            Z[Zsel.index('at')]=astream(X,Y,theta)
-        if 'ap' in Zsel:
-            Z[Zsel.index('ap')]=astream(X,Y,psi)
-
-        if 'uo' in Zsel or 'vo' in Zsel:
-            U,V=ovec(X,Y,aa/dimd['length'])
-            if 'uo' in Zsel:
-                Z[Zsel.index('uo')]=U
-            if 'vo' in Zsel:
-                Z[Zsel.index('vo')]=V
-
-        if 'ua' in Zsel or 'va' in Zsel:
-            U,V=avec(X,Y,psi*(dimd['strfunc']/(dimdv['psi']*dimd['length'])))
-            if 'ua' in Zsel:
-                Z[Zsel.index('ua')]=U
-            if 'va' in Zsel:
-                Z[Zsel.index('va')]=V
-
-        if 'ua1' in Zsel or 'va1' in Zsel or 'ua3' in Zsel or 'va3' in Zsel:
-            U,V=avec(X,Y,psi*(dimd['strfunc']/(dimdv['psi']*dimd['length'])))
-            U1,V1=avec(X,Y,theta*(dimd['strfunc']/(dimdv['theta']*dimd['length'])))
-            if 'ua1' in Zsel:
-                Z[Zsel.index('ua1')]=U+U1
-            if 'va1' in Zsel:
-                Z[Zsel.index('va1')]=V+V1
-            if 'ua3' in Zsel:
-                Z[Zsel.index('ua3')]=U-U1
-            if 'va3' in Zsel:
-                Z[Zsel.index('va3')]=V-V1
-
-        if 'p1' in Zsel or 'p3' in Zsel:
-            pp=astream(X,Y,psi*(dimd['strfunc']/dimdv['psi']))
-            pt=astream(X,Y,theta*(dimd['strfunc']/dimdv['theta']))
-            if 'p1' in Zsel:
-                Z[Zsel.index('p1')]=pp+pt
-            if 'p3' in Zsel:
-                Z[Zsel.index('p3')]=pp-pt
-
-        if 'dt' in Zsel:
-            Z[Zsel.index('dt')]=ostream(X,Y,x[3][:,i])-astream(X,Y,x[1][:,i]))
-
-        if 'ap1' in Zsel or 'ap3' in Zsel:
-            pp=astream(X,Y,psi)
-            pt=astream(X,Y,theta*(dimdv['psi']/dimdv['theta']))
-            if 'ap1' in Zsel:
-                Z[Zsel.index('p1')]=pp+pt
-            if 'ap3' in Zsel:
-                Z[Zsel.index('p3')]=pp-pt
+        Z=compute_frame(line)
 
         if 'diff' in Isel:
             if 'geo' in IIsel[Isel.index('diff')]:
                 geoap.append(geodiff(psi))
 
         for j in range(4):
-            ZM[j].append(np.amax(Z[j][-1]))
-            Zm[j].append(np.amin(Z[j][-1]))
+            ZM[j].append(np.amax(Z[j]))
+            Zm[j].append(np.amin(Z[j]))
 
         for j in range(4):
-            mmax[j]=max(mmax[j],ZM[j][-1])
-            mmin[j]=min(mmin[j],Zm[j][-1])
+            mmax[j]=max(mmax[j],ZM[j])
+            mmin[j]=min(mmin[j],Zm[j])
 
         if 'yprof' in Isel:
             for j in range(4):
-                yprof[j].append(np.mean(Z[j][-1],axis=1))
-                yprofmid[j].append(Z[j][-1][:,sh[1]/2])
+                yprof[j].append(np.mean(Z[j],axis=1))
+                yprofmid[j].append(Z[j][:,sh[1]/2])
                 if i==sti:
                     yprofmidave[j].append(yprofmid[j][-1])
                     yprofave[j].append(yprof[j][-1])
@@ -892,8 +583,8 @@ for i,line in enumerate(e):
                     yprofave[j].append(y)
         if 'xprof' in Isel:
             for j in range(4):
-                xprof[j].append(np.mean(Z[j][-1],axis=0))
-                xprofmid[j].append(Z[j][-1][sh[0]/2,:])
+                xprof[j].append(np.mean(Z[j],axis=0))
+                xprofmid[j].append(Z[j][sh[0]/2,:])
                 if i==sti:
                     xprofmidave[j].append(xprofmid[j][-1])
                     xprofave[j].append(xprof[j][-1])
@@ -1393,17 +1084,17 @@ if "3D" in Isel:
     axs.plot(x[0][0,:],x[0][1,:],zs=x[0][2,:],marker=ms[0],linestyle=ls[0])#,label=fl[i])
     xpoint,=axs.plot([],[],zs=[],marker=',',linestyle='',color='r')#,label=fl[i])
 
-# Cleaned up to here - need to adapt animation loop !
 
 # Spatial plots
 
 e=evol[0]
 e.seek(0)
 
-for i,line in enumerate(e):
+for i, line in enumerate(e):
     if i==sti:
         break
 
+# Cleaned up to here - need to adapt animation loop !
 
 im2=ax3.imshow(Z[1][0],interpolation='bilinear', cmap=Zcm[Zsel[1]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[1],vmax=mmax[1]) 
 cl2=fig.colorbar(im2,ax=ax3,format=Zformat[Zsel[1]])
