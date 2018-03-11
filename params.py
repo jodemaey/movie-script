@@ -2,6 +2,8 @@
 # Module containing all the parameters
 
 import numpy as np
+from geometry import geometry
+
 
 class view(object):
 #-----------------------------------    
@@ -111,8 +113,7 @@ class dimension(object):
     dim=True # dimensionalize the fields
 
 class general(object):
-    # Index of the components in the data
-    sdi={'psi':1,'theta':amod+1,'A':2*amod+1,'T':2*amod+omod+1,'time':0}
+    a=None
 
 
 class labels(object):
@@ -152,9 +153,12 @@ def params_initialize():
 
     # Defining the dico of the dimensionalization
     if dimension.dim:
-        dimension.dimd={'geo':model.geo,'strfunc':model.rpr,'temp':model.RK,'timey':model.ct,'times':1/model.f0,'length':model.L}
+        dimension.dimd={'geo':model.geo,'strfunc':model.rpr,'temp':model.RK,'timey':model.ct,'times':1/model.f0,'length':model.L,'timed':model.ct*model.at}
     else:
         dimension.dimd={'geo':1,'strfunc':1,'temp':1,'timey':1,'times':1,'length':1}
 
     # Defining the dico of the variables dimensionalization    
     dimension.dimdv={'psi':dimension.dimd['strfunc']*dimension.dimd['geo'],'theta':2*dimension.dimd['temp'],'A':dimension.dimd['strfunc'],'T':dimension.dimd['temp'],'time':dimension.dimd['timey']}
+    
+    # Index of the components in the data
+    general.sdi={'psi':1,'theta':geometry.amod+1,'A':2*geometry.amod+1,'T':2*geometry.amod+geometry.omod+1,'time':0}

@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 # Module with utility functions
 
+import numpy as np
+import matplotlib.ticker as ticker
+import matplotlib.cm as cm
+import gzip
+import subprocess
+from params import dimension as dim
+
 #Count the number of line of a file
 def linecount(filename):
     if filename[-3:]=='.gz':
@@ -36,7 +43,7 @@ def fmt(x, pos):
 
 strf=ticker.FuncFormatter(fmt)
 
-if dim:
+if dim.dim:
     Zformat={'at':None,'ot':None,'dt':None,'ap':None,'op':strf,'p3':strf,'p1':strf,'ua':None,'va':None,'uo':None,'vo':None,'ua3':None,'va3':None,'ua1':None,'va1':None,'ap3':None,'ap1':None}
 else:
     Zformat={'at':None,'ot':None,'dt':None,'ap':None,'op':None,'p3':None,'p1':None,'ua':None,'va':None,'uo':None,'vo':None,'ua3':None,'va3':None,'ua1':None,'va1':None,'ap3':None,'ap1':None}

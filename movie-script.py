@@ -37,13 +37,11 @@ from email.MIMEMultipart import MIMEMultipart
 from email.MIMEText import MIMEText
 import gzip
 import sys
-import subprocess
 
 import geometry as geom
-from geofunctions import compute_frame,geodiff
+from geofunctions import compute_frame,compute_quant
 from util import *
 from params import *
-params_initialize()
 #-----------------------------------------------------------
 # Loading the geometries given as arguments or by the users
 #-----------------------------------------------------------
@@ -61,7 +59,7 @@ if not ogeom:
     ogeom='2x4'
 
 geom.set_geometry(ageom,ogeom)
-
+params_initialize()
 
 #----------------------------------------
 # Opening files
@@ -100,7 +98,8 @@ x1=float(x1.split()[0])
 x2=float(x2.split()[0])
 
 dt=x2-x1
-dty=(x2-x1)*dimd['timey']
+dtd=dt*dimension.dimd['timed']
+dty=(x2-x1)*dimension.dimd['timey']
 
 #------------------------------------------------
 # Data for the 3D mode (if selected)
@@ -153,7 +152,7 @@ if "3D" in view.Isel:
     n2=[]
     n3=[]
     s=''
-    for x in sd.keys():
+    for x in labels.sd.keys():
         s+=x+', '
     s=s[:-2]
     for i in range(len(sl)):
@@ -202,10 +201,10 @@ if "3D" in view.Isel:
         for x in e:
             if ii>=sti and ii<=ste and np.mod(ii-sti,itr)==0:
                 y=x.split()
-                tu.append(float(y[sdi['time']]))
-                aa[0].append(float(y[n1[j]+sdi[showp[j]]]))
-                aa[1].append(float(y[n2[j]+sdi[showp2[j]]]))
-                aa[2].append(float(y[n3[j]+sdi[showp3[j]]]))
+                tu.append(float(y[general.sdi['time']]))
+                aa[0].append(float(y[n1[j]+general.sdi[showp[j]]]))
+                aa[1].append(float(y[n2[j]+general.sdi[showp2[j]]]))
+                aa[2].append(float(y[n3[j]+general.sdi[showp3[j]]]))
             if ii>ste:
                 break
             ii+=1
@@ -213,14 +212,14 @@ if "3D" in view.Isel:
         tu=np.array(tu)
         tup=tu.copy()
         tup.shape=1,len(tu)
-        dserie.append([np.array(aa),tup*dimdv['time']])
+        dserie.append([np.array(aa),tup*dimension.dimdv['time']])
 
     # Sending a mail to alert that the data are loaded
 
-    if fromaddr and toaddr:
+    if mail.fromaddr and mail.toaddr:
         msg = MIMEMultipart()
-        msg['From'] = fromaddr
-        msg['To'] = toaddr
+        msg['From'] = mail.fromaddr
+        msg['To'] = mail.toaddr
         msg['Subject'] = "Movie run info"
 
         body = "The run to generate the video for the geometry:\n\n"
@@ -229,9 +228,9 @@ if "3D" in view.Isel:
 
         msg.attach(MIMEText(body, 'plain'))
 
-        server = smtplib.SMTP(servername)
+        server = smtplib.SMTP(mail.servername)
         text = msg.as_string()
-        server.sendmail(fromaddr, toaddr, text)
+        server.sendmail(mail.fromaddr, mail.toaddr, text)
         server.quit()
 
 #------------------------------
@@ -244,7 +243,7 @@ if not delta:
     delta=0.025
 else:
     delta=float(delta)
-x = np.arange(0., 2*np.pi/nr, delta)
+x = np.arange(0., 2*np.pi/model.nr, delta)
 y = np.arange(0., np.pi, delta)
 X, Y = np.meshgrid(x, y)
 sh=X.shape
@@ -252,8 +251,8 @@ sh=X.shape
 # Setting the number of frames and the time of the first and the last one
 while True:
     print 'Total number of possible frames:',nlf
-    if dim:
-        print 'Time between each frame is '+str(dt*at)+' days'
+    if dimension.dim:
+        print 'Time between each frame is '+str(dtd)+' days'
     else:
         print 'Time between each frame is '+str(dt)+' timeunit'
     sti=raw_input('Start at frame (default = first) ?')
@@ -271,13 +270,13 @@ while True:
         ite=1
     else:
         ite=int(ite)
-    if dim:
-        print 'Time between each frame is now '+str(ite*dt*at)+' days'
+    if dimension.dim:
+        print 'Time between each frame is now '+str(ite*dtd)+' days'
     else:
         print 'Time between each frame is '+str(ite*dt)+' timeunits'
     print 'Number of frames that will effectively be computed :'+str((ste-sti)/ite)
-    if dim:
-        print 'for a total time of '+str((ste-sti)*dt)+' years'
+    if dimension.dim:
+        print 'for a total time of '+str((ste-sti)*dty)+' years'
     else:
         print 'for a total time of '+str((ste-sti)*dt)+' timeunits'
 
@@ -303,7 +302,6 @@ Zm=[]
 ZM=[]
 
 for i in range(4):
-    Z.append([])
     Zm.append([])
     ZM.append([])
 
@@ -375,10 +373,6 @@ if 'mode' in view.Isel:
             NYl[ii]=NYl[ii].flatten()
         ii+=1
 
-#overall fields max and min
-mmin=np.zeros((4))
-mmax=np.zeros((4))
-
 #infoviews max and min
 ifsmax=[None,None]
 ifsmin=[None,None]
@@ -392,24 +386,21 @@ for i,line in enumerate(e):
         if np.mod(i-sti,100*ite)==0:
             print 'Probing the fields in the frame ',i,'('+str((i-sti)/ite)+')'
             z=float(line.split()[0])
-            if dim:
-                print 'At time t=',z*dimdv['time'],'years'
+            if dimension.dim:
+                print 'At time t=',z*dimension.dimdv['time'],'years'
             else:
                 print 'At time t=',z,'timeunits'
 
-        Z=compute_frame(line)
+        Z=compute_frame(line,X,Y)
 
-        if 'diff' in view.Isel:
-            if 'geo' in view.IIsel[view.Isel.index('diff')]:
-                geoap.append(geodiff(psi))
+        gdiff=compute_quant(line)
+
+        if gdiff:
+            geoap.append(gdiff)
 
         for j in range(4):
             ZM[j].append(np.amax(Z[j]))
             Zm[j].append(np.amin(Z[j]))
-
-        for j in range(4):
-            mmax[j]=max(mmax[j],ZM[j])
-            mmin[j]=min(mmin[j],Zm[j])
 
         if 'yprof' in view.Isel:
             for j in range(4):
@@ -442,7 +433,7 @@ for i,line in enumerate(e):
                     za[iii].append(np.zeros(ss[iii]))
                     zk[iii].append(np.zeros(ss[iii]))
                     zl[iii].append(np.zeros(ss[iii]))
-                    y=np.absolute(x[sd[sdd[view.IIsel[iii][0]]]][:,i])
+                    y=np.absolute(x[labels.sd[labels.sdd[view.IIsel[iii][0]]]][:,i])
                     y=100*y/y.sum()
                     for ii in range(1,len(y)+1):
                         if 'a' in view.IIsel[iii][0]:
@@ -466,6 +457,14 @@ for i,line in enumerate(e):
                 iii+=1
     if i>=ste:
         break
+
+#overall fields max and min
+mmin=np.zeros((4))
+mmax=np.zeros((4))
+
+for j in range(4):
+    mmax[j]=max(ZM[j])
+    mmin[j]=min(Zm[j])
 
     
 ZM=np.array(ZM)
@@ -495,14 +494,14 @@ for z in view.Isel:
             if 'sp' in x:
                 i=int(x[2])-1
                 diff[ii].append(ZM[i]-Zm[i])
-                difflab[ii].append(Zlabmini[i])
-                if dim:
-                    difflab[ii][-1]+=Zlabelunit[view.Zsel[i]]
+                difflab[ii].append(labels.Zlabmini[i])
+                if dimension.dim:
+                    difflab[ii][-1]+=labels.Zlabelunit[view.Zsel[i]]
             if x=='geo':
                 diff[ii].append(geoap)
                 difflab[ii].append('Geop. H.')
-                if dim:
-                    difflab[ii][-1]+=strg
+                if dimension.dim:
+                    difflab[ii][-1]+=labels.strg
 
         ifsmax[ii]=max(map(np.amax,diff[ii]))
         ifsmin[ii]=min(map(np.amin,diff[ii]))
@@ -512,16 +511,16 @@ for z in view.Isel:
                 i=int(x[3])-1
                 prof[ii].append(yprof[i])
                 profave[ii].append(yprofave[i])
-                proflab[ii].append('Z.A. '+Zlabmini[i])
-                if dim:
-                    proflab[ii][-1]+=Zlabelunit[view.Zsel[i]]
+                proflab[ii].append('Z.A. '+labels.Zlabmini[i])
+                if dimension.dim:
+                    proflab[ii][-1]+=labels.Zlabelunit[view.Zsel[i]]
             elif 'sp' in x:
                 i=int(x[2])-1
                 prof[ii].append(yprofmid[i])
                 profave[ii].append(yprofmidave[i])
-                proflab[ii].append(Zlabmini[i])
-                if dim:
-                    proflab[ii][-1]+=Zlabelunit[view.Zsel[i]]
+                proflab[ii].append(labels.Zlabmini[i])
+                if dimension.dim:
+                    proflab[ii][-1]+=labels.Zlabelunit[view.Zsel[i]]
         ifsmax[ii]=[]
         ifsmin[ii]=[]
         for x in prof[ii]:
@@ -535,16 +534,16 @@ for z in view.Isel:
                 i=int(x[3])-1
                 prof2[ii].append(xprof[i])
                 prof2ave[ii].append(xprofave[i])
-                prof2lab[ii].append('Z.A. '+Zlabmini[i])
-                if dim:
-                    prof2lab[ii][-1]+=Zlabelunit[view.Zsel[i]]
+                prof2lab[ii].append('Z.A. '+labels.Zlabmini[i])
+                if dimension.dim:
+                    prof2lab[ii][-1]+=labels.Zlabelunit[view.Zsel[i]]
             elif 'sp' in x:
                 i=int(x[2])-1
                 prof2[ii].append(xprofmid[i])
                 prof2ave[ii].append(xprofmidave[i])
-                prof2lab[ii].append(Zlabmini[i])
-                if dim:
-                    prof2lab[ii][-1]+=Zlabelunit[view.Zsel[i]]
+                prof2lab[ii].append(labels.Zlabmini[i])
+                if dimension.dim:
+                    prof2lab[ii][-1]+=labels.Zlabelunit[view.Zsel[i]]
         ifsmax[ii]=[]
         ifsmin[ii]=[]
         for x in prof2[ii]:
@@ -553,6 +552,25 @@ for z in view.Isel:
         ifsmax[ii]=max(ifsmax[ii])
         ifsmin[ii]=min(ifsmin[ii])
     ii+=1
+
+
+# Sending a mail to alert that the frames probing has finished
+if mail.fromaddr and mail.toaddr:
+    msg = MIMEMultipart()
+    msg['From'] = mail.fromaddr
+    msg['To'] = mail.toaddr
+    msg['Subject'] = "Movie run info"
+
+    body = "The run to generate the video for the geometry:\n\n"
+    body += "    atm. "+ageom+" -  oc."+ogeom+"\n\n"
+    body += "has finished probing the frames! "
+        
+    msg.attach(MIMEText(body, 'plain'))
+
+    server = smtplib.SMTP(mail.servername)
+    text = msg.as_string()
+    server.sendmail(mail.fromaddr, mail.toaddr, text)
+    server.quit()
 
 #--------------------------------------
 # Setup of the plots
@@ -586,21 +604,21 @@ ax6=fig.add_subplot(2,3,6)
 
 # Views title
 
-ax1.set_title(Ivtit[view.Isel[0]])
+ax1.set_title(labels.Ivtit[view.Isel[0]])
 if view.Isel[0]=="mode":
-    ax1.text2D(0.5, 0.9,Zlabelmini[view.IIsel[0][0]], horizontalalignment='center',verticalalignment='center',transform=ax1.transAxes,fontdict={'size':12})
+    ax1.text2D(0.5, 0.9,labels.Zlabelmini[view.IIsel[0][0]], horizontalalignment='center',verticalalignment='center',transform=ax1.transAxes,fontdict={'size':12})
 if view.Isel[0]=="3D":
     ax1.text2D(0.5, 0.9,'(Non-dimensional units)', horizontalalignment='center',verticalalignment='center',transform=ax1.transAxes,fontdict={'size':12})
-ax2.set_title(Ivtit[view.Isel[1]])
+ax2.set_title(labels.Ivtit[view.Isel[1]])
 if view.Isel[1]=="mode":
-    ax2.text2D(0.5, 0.9,Zlabelmini[view.IIsel[1][0]], horizontalalignment='center',verticalalignment='center',transform=ax2.transAxes,fontdict={'size':12})
+    ax2.text2D(0.5, 0.9,labels.Zlabelmini[view.IIsel[1][0]], horizontalalignment='center',verticalalignment='center',transform=ax2.transAxes,fontdict={'size':12})
 if view.Isel[1]=="3D":
     ax2.text2D(0.5, 0.9,'(Non-dimensional units)', horizontalalignment='center',verticalalignment='center',transform=ax2.transAxes,fontdict={'size':12})
 
-ax3.set_title(Zlab[1])
-ax4.set_title(Zlab[3]) 
-ax5.set_title(Zlab[0])
-ax6.set_title(Zlab[2])
+ax3.set_title(labels.Zlab[1])
+ax4.set_title(labels.Zlab[3]) 
+ax5.set_title(labels.Zlab[0])
+ax6.set_title(labels.Zlab[2])
 
 axm=[ax1,ax2]
 
@@ -642,12 +660,12 @@ if "3D" in view.Isel:
 
     # x ticks and axis label
 
-    labels = [item.get_text() for item in axs.get_xticklabels()]
-    ii=len(labels)-1
+    tlabels = [item.get_text() for item in axs.get_xticklabels()]
+    ii=len(tlabels)-1
     labto=[]
-    #	print labels
+    #	print tlabels
     jk=0
-    for x in labels:
+    for x in tlabels:
         if x:
             jk+=1
             y=float(x.replace(u'\u2212',u'-'))
@@ -672,20 +690,20 @@ if "3D" in view.Isel:
     til1[0].label1.set_visible(True)
 
     if showp[0]=='time':
-        axs.set_xlabel('\n\n'+r'$'+vl[showp[0]]+r'$',fontdict={'size':18})
+        axs.set_xlabel('\n\n'+r'$'+labels.vl[showp[0]]+r'$',fontdict={'size':18})
     else:
     #    if abs(n)>2:
-    #        axs.set_xlabel('\n\n'+r'$'+vl[showp[0]]+str(n1[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})
+    #        axs.set_xlabel('\n\n'+r'$'+labels.vl[showp[0]]+str(n1[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})
     #    else:
-        axs.set_xlabel('\n\n\n'+r'$'+vl[showp[0]]+str(n1[0]+1)+r'}$',fontdict={'size':18})
+        axs.set_xlabel('\n\n\n'+r'$'+labels.vl[showp[0]]+str(n1[0]+1)+r'}$',fontdict={'size':18})
 
     # y ticks and axis label
 
-    labels = [item.get_text() for item in axs.get_yticklabels()]
-    ii=len(labels)-1
+    tlabels = [item.get_text() for item in axs.get_yticklabels()]
+    ii=len(tlabels)-1
     labto=[]
     jk=0
-    for x in labels:
+    for x in tlabels:
         if x:
             jk+=1
             y=float(x.replace(u'\u2212',u'-'))
@@ -710,17 +728,17 @@ if "3D" in view.Isel:
     til2[0].label1.set_visible(True)
 
     #if abs(n)>2:
-    #    axs.set_ylabel('\n\n'+r'$'+vl[showp2[0]]+str(n2[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})
+    #    axs.set_ylabel('\n\n'+r'$'+labels.vl[showp2[0]]+str(n2[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})
     #else:
-    axs.set_ylabel('\n\n'+r'$'+vl[showp2[0]]+str(n2[0]+1)+r'}$',fontdict={'size':18})
+    axs.set_ylabel('\n\n'+r'$'+labels.vl[showp2[0]]+str(n2[0]+1)+r'}$',fontdict={'size':18})
 
     # z ticks
 
-    labels = [item.get_text() for item in axs.get_zticklabels()]
-    ii=len(labels)-1
+    tlabels = [item.get_text() for item in axs.get_zticklabels()]
+    ii=len(tlabels)-1
     labto=[]
     jk=0
-    for x in labels:
+    for x in tlabels:
         if x:
             jk+=1
             y=float(x.replace(u'\u2212',u'-'))
@@ -745,9 +763,9 @@ if "3D" in view.Isel:
     til3[0].label1.set_visible(True)
 
     #if abs(n)>2:
-    #    axs.set_zlabel(''+r'$'+vl[showp3[0]]+str(n3[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})    
+    #    axs.set_zlabel(''+r'$'+labels.vl[showp3[0]]+str(n3[0]+1)+r'}$ ${(\times 10^{'+str(-n)+r'})}$',fontdict={'size':18})    
     #else:
-    axs.set_zlabel(''+r'$'+vl[showp3[0]]+str(n3[0]+1)+r'}$',fontdict={'size':18})
+    axs.set_zlabel(''+r'$'+labels.vl[showp3[0]]+str(n3[0]+1)+r'}$',fontdict={'size':18})
 
 
     # ticks alignement
@@ -780,12 +798,12 @@ i=0
 for x in view.Isel:
     axs=axm[i]
     if x=="diff":
-        axs.set_xlim(0.,sete[0][4][0,ste-1]-sete[0][4][0,sti])
+        axs.set_xlim(0.,dserie[0][1][0,ste]-dserie[0][1][0,sti])
         if ifsmin>0.:
             axs.set_ylim(0.9*ifsmin[i],1.4*ifsmax[i])
         else:
             axs.set_ylim(1.1*ifsmin[i],1.4*ifsmax[i])
-        if dim:
+        if dimension.dim:
             axs.set_xlabel('time (years)')
         else:
             axs.set_xlabel('time (timeunits)')
@@ -936,18 +954,18 @@ for i, line in enumerate(e):
     if i==sti:
         break
 
-Z=compute_frame(line)
+Z=compute_frame(line,X,Y)
 
-im2=ax3.imshow(Z[1],interpolation='bilinear', cmap=Zcm[view.Zsel[1]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[1],vmax=mmax[1]) 
+im2=ax3.imshow(Z[1],interpolation='bilinear', cmap=Zcm[view.Zsel[1]], origin='lower', extent=[0,2*np.pi/model.nr,0,np.pi],vmin=mmin[1],vmax=mmax[1]) 
 cl2=fig.colorbar(im2,ax=ax3,format=Zformat[view.Zsel[1]])
 
-im1=ax4.imshow(Z[3],interpolation='bilinear', cmap=Zcm[view.Zsel[3]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[3],vmax=mmax[3])
+im1=ax4.imshow(Z[3],interpolation='bilinear', cmap=Zcm[view.Zsel[3]], origin='lower', extent=[0,2*np.pi/model.nr,0,np.pi],vmin=mmin[3],vmax=mmax[3])
 cl1=fig.colorbar(im1,ax=ax4,format=Zformat[view.Zsel[3]])
 
-im3=ax5.imshow(Z[0],interpolation='bilinear', cmap=Zcm[view.Zsel[0]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[0],vmax=mmax[0])
+im3=ax5.imshow(Z[0],interpolation='bilinear', cmap=Zcm[view.Zsel[0]], origin='lower', extent=[0,2*np.pi/model.nr,0,np.pi],vmin=mmin[0],vmax=mmax[0])
 cl3=fig.colorbar(im3,ax=ax5,format=Zformat[view.Zsel[0]])
 
-im0=ax6.imshow(Z[2],interpolation='bilinear', cmap=Zcm[view.Zsel[2]], origin='lower', extent=[0,2*np.pi/nr,0,np.pi],vmin=mmin[2],vmax=mmax[2]) # ,label='year '+str(ny))
+im0=ax6.imshow(Z[2],interpolation='bilinear', cmap=Zcm[view.Zsel[2]], origin='lower', extent=[0,2*np.pi/model.nr,0,np.pi],vmin=mmin[2],vmax=mmax[2]) # ,label='year '+str(ny))
 cl0=fig.colorbar(im0,ax=ax6,format=Zformat[view.Zsel[2]])
 
 # im0=ax6.streamplot(X,Y,Uop[0],Vop[0],color=np.sqrt(Uop[0]**2+Vop[0]**2),linewidth=2,cmap=cm.Reds)
@@ -1019,7 +1037,7 @@ def animate(l):
     # # im0=ax6.streamplot(X,Y,Uop[l],Vop[l],color=np.sqrt(Uop[l]**2+Vop[l]**2),linewidth=2,cmap=cm.Reds)
     # im0=ax6.quiver(X,Y,Uop[l],Vop[l])
     line=e.readline()
-    Z=compute_frame(line)
+    Z=compute_frame(line,X,Y)
 
     im2.set_data(Z[1])
     cl2.on_mappable_changed(im2)
@@ -1093,23 +1111,6 @@ else:
         comment='test' # Comments
     meta={'title':tit,'artist':auth,'copyright':lic,'comment':comment,'year':year}
 
-    # Sending a mail to alert that the video encoding has begun
-    if fromaddr and toaddr:
-        msg = MIMEMultipart()
-        msg['From'] = fromaddr
-        msg['To'] = toaddr
-        msg['Subject'] = "Movie run info"
-
-        body = "The run to generate the video for the geometry:\n\n"
-        body += "    atm. "+ageom+" -  oc."+ogeom+"\n\n"
-        body += "starts the video encoding! "
-        
-        msg.attach(MIMEText(body, 'plain'))
-
-        server = smtplib.SMTP(servername)
-        text = msg.as_string()
-        server.sendmail(fromaddr, toaddr, text)
-        server.quit()
 
 # Actual video generation
     ani = anim.FuncAnimation(fig, animate, frames=(lengf)/ival, interval=mival, blit=False)
@@ -1125,10 +1126,10 @@ endt=time.time()
 
 # Sending a final mail to alert that the video generation has ended.
 
-if fromaddr and toaddr:
+if mail.fromaddr and mail.toaddr:
     msg = MIMEMultipart()
-    msg['From'] = fromaddr
-    msg['To'] = toaddr
+    msg['From'] = mail.fromaddr
+    msg['To'] = mail.toaddr
     msg['Subject'] = "End of the movie run"
  
     body = "The run to generate the video for the geometry:\n\n"
@@ -1142,7 +1143,7 @@ if fromaddr and toaddr:
 
     msg.attach(MIMEText(body, 'plain'))
  
-    server = smtplib.SMTP(servername)
+    server = smtplib.SMTP(mail.servername)
     text = msg.as_string()
-    server.sendmail(fromaddr, toaddr, text)
+    server.sendmail(mail.fromaddr, mail.toaddr, text)
     server.quit()

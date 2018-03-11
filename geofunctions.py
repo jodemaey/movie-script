@@ -3,7 +3,7 @@
 import warnings
 import numpy as np
 from geometry import geometry as geom
-from params import view
+from params import *
 
 if not geom.aset:
     warnings.warn('Geometry not yet defined!',category=ImportWarning)
@@ -21,9 +21,9 @@ def Fi(i,x,y):
     if w['typ']=='A':
         return np.sqrt(2)*np.cos(Ny*y)
     elif w['typ']=='K':
-        return 2*np.cos(nr*Nx*x)*np.sin(Ny*y)
+        return 2*np.cos(model.nr*Nx*x)*np.sin(Ny*y)
     else:
-        return 2*np.sin(nr*Nx*x)*np.sin(Ny*y)
+        return 2*np.sin(model.nr*Nx*x)*np.sin(Ny*y)
 
 # Partial derivatives
 def dxFi(i,x,y):  # in x
@@ -33,9 +33,9 @@ def dxFi(i,x,y):  # in x
     if w['typ']=='A':
         return 0 #np.sqrt(2)*np.cos(Ny*y)
     elif w['typ']=='K':
-        return -2*nr*Nx*np.sin(nr*Nx*x)*np.sin(Ny*y) #2*np.cos(nr*Nx*x)*np.sin(Ny*y)
+        return -2*model.nr*Nx*np.sin(model.nr*Nx*x)*np.sin(Ny*y) #2*np.cos(model.nr*Nx*x)*np.sin(Ny*y)
     else:
-        return 2*nr*Nx*np.cos(nr*Nx*x)*np.sin(Ny*y) #2*np.sin(nr*Nx*x)*np.sin(Ny*y)
+        return 2*model.nr*Nx*np.cos(model.nr*Nx*x)*np.sin(Ny*y) #2*np.sin(model.nr*Nx*x)*np.sin(Ny*y)
 
 def dyFi(i,x,y):  # in y
     w=geom.aftable[i]
@@ -44,29 +44,29 @@ def dyFi(i,x,y):  # in y
     if w['typ']=='A':
         return -Ny*np.sqrt(2)*np.sin(Ny*y) #np.sqrt(2)*np.cos(Ny*y)
     elif w['typ']=='K':
-        return 2*Ny*np.cos(nr*Nx*x)*np.cos(Ny*y) #2*np.cos(nr*Nx*x)*np.sin(Ny*y)
+        return 2*Ny*np.cos(model.nr*Nx*x)*np.cos(Ny*y) #2*np.cos(model.nr*Nx*x)*np.sin(Ny*y)
     else:
-        return 2*Ny*np.sin(nr*Nx*x)*np.cos(Ny*y) #2*np.sin(nr*Nx*x)*np.sin(Ny*y)
+        return 2*Ny*np.sin(model.nr*Nx*x)*np.cos(Ny*y) #2*np.sin(model.nr*Nx*x)*np.sin(Ny*y)
 
 # For the ocean
 def phi(i,x,y):
     w=geom.oftable[i]
     Nx=w['Nx']
     Ny=w['Ny']
-    return 2*np.sin(nr*Nx*x)*np.sin(Ny*y)
+    return 2*np.sin(model.nr*Nx*x)*np.sin(Ny*y)
 
 # Partial derivatives
 def dxphi(i,x,y): # in x
     w=geom.oftable[i]
     Nx=w['Nx']
     Ny=w['Ny']
-    return 2*nr*Nx*np.cos(nr*Nx*x)*np.sin(Ny*y) #2*np.exp(-al*x)*np.sin(nr*Nx*x)*np.sin(Ny*y)
+    return 2*model.nr*Nx*np.cos(model.nr*Nx*x)*np.sin(Ny*y) #2*np.exp(-al*x)*np.sin(model.nr*Nx*x)*np.sin(Ny*y)
 
 def dyphi(i,x,y):
     w=geom.oftable[i]
     Nx=w['Nx']
     Ny=w['Ny']
-    return 2*Ny*np.sin(nr*Nx*x)*np.cos(Ny*y) #2*np.exp(-al*x)*np.sin(nr*Nx*x)*np.sin(Ny*y)
+    return 2*Ny*np.sin(model.nr*Nx*x)*np.cos(Ny*y) #2*np.exp(-al*x)*np.sin(model.nr*Nx*x)*np.sin(Ny*y)
 
 # Function returning the fields based on the coefficients
 # ---------------------------------------------------------
@@ -121,26 +121,26 @@ def ovec(x,y,a):
 # Function that return the geopotential height difference
 # between North (pi/n,3pi/4) and South (pi/n,pi/4)
 def geodiff(pt):
-    Zn=pt[0]*Fi(1,np.pi/nr,3*np.pi/4)
-    Zs=pt[0]*Fi(1,np.pi/nr,np.pi/4)
+    Zn=pt[0]*Fi(1,np.pi/model.nr,3*np.pi/4)
+    Zs=pt[0]*Fi(1,np.pi/model.nr,np.pi/4)
     for i in range(1,geom.amod):
-        Zn+=pt[i]*Fi(i+1,np.pi/nr,3*np.pi/4)
-        Zs+=pt[i]*Fi(i+1,np.pi/nr,np.pi/4)
+        Zn+=pt[i]*Fi(i+1,np.pi/model.nr,3*np.pi/4)
+        Zs+=pt[i]*Fi(i+1,np.pi/model.nr,np.pi/4)
     return Zs-Zn
 
 
-def compute_frame(line):
+def compute_frame(line,X,Y):
     y=line.split()
     y=np.array(y,dtype=np.float64)
-    psi=y[1:geom.amod+1]
-    theta=y[geom.amod+1:2*geom.amod+1]
-    aa=y[2*geom.amod+1:2*geom.amod+geom.omod+1]
-    tt=y[2*geom.amod+geom.omod+1:geom.ndim+1]
+    psi=y[general.sdi['psi']:general.sdi['theta']]
+    theta=y[general.sdi['theta']:general.sdi['A']]
+    aa=y[general.sdi['A']:general.sdi['T']]
+    tt=y[general.sdi['T']:geom.ndim+1]
 
-    psi=psi*dimdv['psi']
-    theta=theta*dimdv['theta']
-    aa=aa*dimdv['A']
-    tt=tt*dimdv['T']
+    psi=psi*dimension.dimdv['psi']
+    theta=theta*dimension.dimdv['theta']
+    aa=aa*dimension.dimdv['A']
+    tt=tt*dimension.dimdv['T']
 
     Z=[None,None,None,None]
 
@@ -154,22 +154,22 @@ def compute_frame(line):
         Z[view.Zsel.index('ap')]=astream(X,Y,psi)
 
     if 'uo' in view.Zsel or 'vo' in view.Zsel:
-        U,V=ovec(X,Y,aa/dimd['length'])
+        U,V=ovec(X,Y,aa/dimension.dimd['length'])
         if 'uo' in view.Zsel:
             Z[view.Zsel.index('uo')]=U
         if 'vo' in view.Zsel:
             Z[view.Zsel.index('vo')]=V
 
     if 'ua' in view.Zsel or 'va' in view.Zsel:
-        U,V=avec(X,Y,psi*(dimd['strfunc']/(dimdv['psi']*dimd['length'])))
+        U,V=avec(X,Y,psi*(dimension.dimd['strfunc']/(dimension.dimdv['psi']*dimension.dimd['length'])))
         if 'ua' in view.Zsel:
             Z[view.Zsel.index('ua')]=U
         if 'va' in view.Zsel:
             Z[view.Zsel.index('va')]=V
 
     if 'ua1' in view.Zsel or 'va1' in view.Zsel or 'ua3' in view.Zsel or 'va3' in view.Zsel:
-        U,V=avec(X,Y,psi*(dimd['strfunc']/(dimdv['psi']*dimd['length'])))
-        U1,V1=avec(X,Y,theta*(dimd['strfunc']/(dimdv['theta']*dimd['length'])))
+        U,V=avec(X,Y,psi*(dimension.dimd['strfunc']/(dimension.dimdv['psi']*dimension.dimd['length'])))
+        U1,V1=avec(X,Y,theta*(dimension.dimd['strfunc']/(dimension.dimdv['theta']*dimension.dimd['length'])))
         if 'ua1' in view.Zsel:
             Z[view.Zsel.index('ua1')]=U+U1
         if 'va1' in view.Zsel:
@@ -180,8 +180,8 @@ def compute_frame(line):
             Z[view.Zsel.index('va3')]=V-V1
 
     if 'p1' in view.Zsel or 'p3' in view.Zsel:
-        pp=astream(X,Y,psi*(dimd['strfunc']/dimdv['psi']))
-        pt=astream(X,Y,theta*(dimd['strfunc']/dimdv['theta']))
+        pp=astream(X,Y,psi*(dimension.dimd['strfunc']/dimension.dimdv['psi']))
+        pt=astream(X,Y,theta*(dimension.dimd['strfunc']/dimension.dimdv['theta']))
         if 'p1' in view.Zsel:
             Z[view.Zsel.index('p1')]=pp+pt
         if 'p3' in view.Zsel:
@@ -192,9 +192,31 @@ def compute_frame(line):
 
     if 'ap1' in view.Zsel or 'ap3' in view.Zsel:
         pp=astream(X,Y,psi)
-        pt=astream(X,Y,theta*(dimdv['psi']/dimdv['theta']))
+        pt=astream(X,Y,theta*(dimension.dimdv['psi']/dimension.dimdv['theta']))
         if 'ap1' in view.Zsel:
             Z[view.Zsel.index('p1')]=pp+pt
         if 'ap3' in view.Zsel:
             Z[view.Zsel.index('p3')]=pp-pt
     return Z
+
+def compute_quant(line):
+    y=line.split()
+    y=np.array(y,dtype=np.float64)
+    psi=y[general.sdi['psi']:general.sdi['theta']]
+    # theta=y[general.sdi['theta']:general.sdi['A']]
+    # aa=y[general.sdi['A']:general.sdi['T']]
+    # tt=y[general.sdi['T']:geom.ndim+1]
+
+    psi=psi*dimension.dimdv['psi']
+    # theta=theta*dimension.dimdv['theta']
+    # aa=aa*dimension.dimdv['A']
+    # tt=tt*dimension.dimdv['T']
+
+    if 'diff' in view.Isel:
+        if 'geo' in view.IIsel[view.Isel.index('diff')]:
+            geoap=geodiff(psi)
+        else:
+            geoap=None
+    else:
+        geoap=None
+    return geoap
