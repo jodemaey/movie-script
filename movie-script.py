@@ -68,7 +68,7 @@ params_initialize()
 # User specification of the data file
 if len(sys.argv)==2 or len(sys.argv)==4:
     s=sys.argv[1][:]
-    print "Loading from file "+s
+    print "Loading from file "+s+"\n"
 else:
     print "No data filename specified as argument."
     s=raw_input('Filename of the data ?')
@@ -156,7 +156,7 @@ if "3D" in view.Isel:
         s+=x+', '
     s=s[:-2]
     for i in range(len(sl)):
-        print 'Parameter for the file ',sl[i]
+        # print 'Parameter for the file ',sl[i]
         x='A' #raw_input('Var ('+s+') ?')
         showp.append(x)
         if x=='time':
@@ -237,7 +237,14 @@ if "3D" in view.Isel:
 # Spatial fields computation
 #------------------------------
 
+print""
+print "Selecting the frame to be displayed as field"
+print "--------------------------------------------"
+print ""
+
+
 # Setting the grids
+print ""
 delta=raw_input('Space between points on the grid (default = 0.025) ?') 
 if not delta:
     delta=0.025
@@ -291,8 +298,10 @@ while True:
 #------------------------------------------------------------
 
 startt=time.time()
-
-print "Computing fields extermums..."
+print ""
+print "Computing fields extermums"
+print "--------------------------"
+print ""
 print "This may take a while..."
 
 # Preparing space to store the results
@@ -380,8 +389,12 @@ ifsmin=[None,None]
 e=evol[0]
 e.seek(0)
 
-for i,line in enumerate(e):
+for i in range(nlf):
+    z=e.tell()
+    line=e.readline()
     if i>=sti and np.mod(i-sti,ite)==0:
+        if i==sti:
+            pos=z
 
         if np.mod(i-sti,100*ite)==0:
             print 'Probing the fields in the frame ',i,'('+str((i-sti)/ite)+')'
@@ -948,11 +961,9 @@ if "3D" in view.Isel:
 # Spatial plots
 
 e=evol[0]
-e.seek(0)
+e.seek(pos)
 
-for i, line in enumerate(e):
-    if i==sti:
-        break
+line=e.readline()
 
 Z=compute_frame(line,X,Y)
 
@@ -989,7 +1000,7 @@ ax6.yaxis.set_major_locator(ticker.MultipleLocator(1.0))
 for i in range(len(dserie[0])):
     dserie[0][i]=dserie[0][i][:,sti:ste+1:ite]
 
-print len(dserie[0][i][1,:])
+print len(dserie[0][0][0,:])
 print len(ZM[0])
 
 # Defining the animation update function
@@ -1012,8 +1023,8 @@ def animate(l):
     for z in view.Isel:
         if z=='diff':
             for j in range(len(diff[ii])):
-                xrlines[ii][j].set_xdata(x[1][0,:l+1:ival])
-                xrlines[ii][j].set_ydata(diff[ii][j][:l+1:ival])
+                xrlines[ii][j].set_xdata(x[1][0,:l+1])
+                xrlines[ii][j].set_ydata(diff[ii][j][:l+1])
         if z=='yprof':
             for j in range(len(prof[ii])):
                 xrlines[ii][j].set_ydata(prof[ii][j][l])
@@ -1074,7 +1085,7 @@ lengf=len(ZM[0])
 matplotlib.verbose.set_level('debug')
 
 if showb in ['P','p']:
-    ani = anim.FuncAnimation(fig, animate, frames=(lengf)/ival, interval=10, blit=False)
+    ani = anim.FuncAnimation(fig, animate, frames=lengf, interval=10, blit=False)
     plt.show()
 else:
     while True:
@@ -1084,7 +1095,7 @@ else:
         else:
             mival=int(mival)
         print 'The FPS will be '+str(int(1./(mival/1000.)))+' frames per second.'
-        print 'The movie will last '+str(mival*lengf/ival/1.e3)+' seconds.'
+        print 'The movie will last '+str(mival*lengf/1.e3)+' seconds.'
         x=raw_input('Do you agree with this ? (y/N)')
         if x in ['y','Y']:
             break
@@ -1113,7 +1124,7 @@ else:
 
 
 # Actual video generation
-    ani = anim.FuncAnimation(fig, animate, frames=(lengf)/ival, interval=mival, blit=False)
+    ani = anim.FuncAnimation(fig, animate, frames=lengf, interval=mival, blit=False)
     
     ssav=raw_input('Output filename ? (default : "out.mp4")')
     if not ssav:
