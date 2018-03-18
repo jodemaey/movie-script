@@ -13,8 +13,21 @@
 # - matplotlib >= 1.5
 # - numpy
 
-# TODO : - Move the parameters at the beginning of the code
-#        - Generate frames "on the fly"
+# TODO : - 
+#        - 
+
+# WARNING 1/2 : Assume that the spectral "geometry" of the model is contiguous.
+#               E.g. a "2x4" geometry means that all the mode with x- and
+#               y-wavenumber <= 2 and 4 respectively are included in the model.
+
+# WARNING 2/2 : Assume the mode indexing convention proposed in 
+#
+#               De Cruz, L., Demaeyer, J. and Vannitsem, S.: The Modular
+#               Arbitrary-Order Ocean-Atmosphere Model: MAOOAM v1.0,
+#               Geosci. Model Dev., 9, 2793-2808, doi:10.5194/gmd-9-2793-2016, 2016.
+#
+#               By default, Lua and python implementation of MAOOAM use this indexing convention,
+#               but the the fortran one is more flexible, and care must taken when configuring it.
 
 # Loading of the libraries
 
@@ -27,7 +40,6 @@ import matplotlib.pyplot as plt
 # print plt.get_backend()
 import matplotlib.animation as anim
 from mpl_toolkits.mplot3d import Axes3D
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from matplotlib import rc
 rc('font',**{'family':'serif','sans-serif':['Times'],'size':14})
 
@@ -268,11 +280,11 @@ while True:
     if not sti:
         sti=0
     else:
-        sti=int(sti)
+        sti=int(sti)-1
     if not ste:
         ste=nlf-1
     else:
-        ste=int(ste)
+        ste=int(ste)-1
     if not ite:
         ite=1
     else:
@@ -299,8 +311,8 @@ while True:
 
 startt=time.time()
 print ""
-print "Computing fields extermums"
-print "--------------------------"
+print "1st pass : Computing fields extremums"
+print "-------------------------------------"
 print ""
 print "This may take a while..."
 
@@ -396,8 +408,8 @@ for i in range(nlf):
         if i==sti:
             pos=z
 
-        if np.mod(i-sti,100*ite)==0:
-            print 'Probing the fields in the frame ',i,'('+str((i-sti)/ite)+')'
+        if np.mod(i+1-sti,100*ite)==0:
+            print 'Probing the fields in the frame ',i+1,'('+str((i+1-sti)/ite)+')'
             z=float(line.split()[0])
             if dimension.dim:
                 print 'At time t=',z*dimension.dimdv['time'],'years'
@@ -1003,13 +1015,14 @@ for i in range(len(dserie[0])):
 print len(dserie[0][0][0,:])
 print len(ZM[0])
 
+
 # Defining the animation update function
 
 def animate(l):
     if l==1 and "3D" in view.Isel:
         xpoint.set_marker('o')
-    if np.mod(l,100)==0:
-        print l
+    if np.mod(l+1,100)==0:
+        print "Now encoding frame :",l+1
 
     if "3D" in view.Isel or 'diff' in view.Isel: 
         x=dserie[0]  
@@ -1047,6 +1060,8 @@ def animate(l):
     # ax6.cla()
     # # im0=ax6.streamplot(X,Y,Uop[l],Vop[l],color=np.sqrt(Uop[l]**2+Vop[l]**2),linewidth=2,cmap=cm.Reds)
     # im0=ax6.quiver(X,Y,Uop[l],Vop[l])
+    if l==0:
+        e.seek(pos)
     line=e.readline()
     Z=compute_frame(line,X,Y)
 
@@ -1075,6 +1090,8 @@ def animate(l):
 
 
 # Computing the animation
+
+e.seek(pos)
 
 showb=raw_input('Do you want to plot it or to make a movie (p/M) ?')
 if not showb:
