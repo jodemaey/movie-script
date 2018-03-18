@@ -293,11 +293,11 @@ while True:
         print 'Time between each frame is now '+str(ite*dtd)+' days'
     else:
         print 'Time between each frame is '+str(ite*dt)+' timeunits'
-    print 'Number of frames that will effectively be computed :'+str((ste-sti)/ite)
+    print 'Number of frames that will effectively be computed :'+str((ste-sti+1)/ite)
     if dimension.dim:
-        print 'for a total time of '+str((ste-sti)*dty)+' years'
+        print 'for a total time of '+str((ste-sti+1)*dty)+' years'
     else:
-        print 'for a total time of '+str((ste-sti)*dt)+' timeunits'
+        print 'for a total time of '+str((ste-sti+1)*dt)+' timeunits'
 
     x=raw_input('Do you agree (y/N) ?')
     if x in ['y','Y']:
@@ -407,6 +407,8 @@ for i in range(nlf):
     if i>=sti and np.mod(i-sti,ite)==0:
         if i==sti:
             pos=z
+            print 'First frame',sti,i-sti
+            print line
 
         if np.mod(i+1-sti,100*ite)==0:
             print 'Probing the fields in the frame ',i+1,'('+str((i+1-sti)/ite)+')'
@@ -481,7 +483,11 @@ for i in range(nlf):
                     ifsmax[iii]=max(ifsmax[iii],np.amax(za[iii][-1]),np.amax(zk[iii][-1]),np.amax(zl[iii][-1]))
                 iii+=1
     if i>=ste:
+        print 'Last frame',ste,(ste-sti)/ite
+        print line
         break
+
+print '1st and last frame max',ZM[0][0],ZM[0][-1],ZM[0][(ste-sti)/ite]
 
 #overall fields max and min
 mmin=np.zeros((4))
@@ -1012,8 +1018,21 @@ ax6.yaxis.set_major_locator(ticker.MultipleLocator(1.0))
 for i in range(len(dserie[0])):
     dserie[0][i]=dserie[0][i][:,sti:ste+1:ite]
 
+#Shifting the time vector
+
+dserie[0][1]-=dserie[0][1][0,0]
+
 print len(dserie[0][0][0,:])
 print len(ZM[0])
+
+print 'First 3D view comp.',dserie[0][0][:,0]
+print 'Last 3D view comp.',dserie[0][0][:,-1]
+
+print 'First max.',ZM[0][0]
+print 'Last 3D view comp.',ZM[0][-1]
+
+print 'initial time',dserie[0][1][0,0]
+print 'final time',dserie[0][1][0,-1]
 
 
 # Defining the animation update function
@@ -1062,7 +1081,12 @@ def animate(l):
     # im0=ax6.quiver(X,Y,Uop[l],Vop[l])
     if l==0:
         e.seek(pos)
-    line=e.readline()
+        line=e.readline()
+    else:
+        for itz in range(ite):
+            line=e.readline()
+    print l
+    print line
     Z=compute_frame(line,X,Y)
 
     im2.set_data(Z[1])
@@ -1149,6 +1173,7 @@ else:
     ani.save(ssav,writer='mencoder',bitrate=None,codec='mpeg4:vbitrate=3000',metadata=meta) #extra_args=['-vf','scale=1024:576'],
         
 endt=time.time()
+print line
 
 
 
