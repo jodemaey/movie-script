@@ -407,8 +407,6 @@ for i in range(nlf):
     if i>=sti and np.mod(i-sti,ite)==0:
         if i==sti:
             pos=z
-            print 'First frame',sti,i-sti
-            print line
 
         if np.mod(i+1-sti,100*ite)==0:
             print 'Probing the fields in the frame ',i+1,'('+str((i+1-sti)/ite)+')'
@@ -483,11 +481,8 @@ for i in range(nlf):
                     ifsmax[iii]=max(ifsmax[iii],np.amax(za[iii][-1]),np.amax(zk[iii][-1]),np.amax(zl[iii][-1]))
                 iii+=1
     if i>=ste:
-        print 'Last frame',ste,(ste-sti)/ite
-        print line
         break
 
-print '1st and last frame max',ZM[0][0],ZM[0][-1],ZM[0][(ste-sti)/ite]
 
 #overall fields max and min
 mmin=np.zeros((4))
@@ -694,7 +689,6 @@ if "3D" in view.Isel:
     tlabels = [item.get_text() for item in axs.get_xticklabels()]
     ii=len(tlabels)-1
     labto=[]
-    #	print tlabels
     jk=0
     for x in tlabels:
         if x:
@@ -1022,19 +1016,6 @@ for i in range(len(dserie[0])):
 
 dserie[0][1]-=dserie[0][1][0,0]
 
-print len(dserie[0][0][0,:])
-print len(ZM[0])
-
-print 'First 3D view comp.',dserie[0][0][:,0]
-print 'Last 3D view comp.',dserie[0][0][:,-1]
-
-print 'First max.',ZM[0][0]
-print 'Last 3D view comp.',ZM[0][-1]
-
-print 'initial time',dserie[0][1][0,0]
-print 'final time',dserie[0][1][0,-1]
-
-
 # Defining the animation update function
 
 def animate(l):
@@ -1085,8 +1066,7 @@ def animate(l):
     else:
         for itz in range(ite):
             line=e.readline()
-    print l
-    print line
+
     Z=compute_frame(line,X,Y)
 
     im2.set_data(Z[1])
@@ -1173,7 +1153,6 @@ else:
     ani.save(ssav,writer='mencoder',bitrate=None,codec='mpeg4:vbitrate=3000',metadata=meta) #extra_args=['-vf','scale=1024:576'],
         
 endt=time.time()
-print line
 
 
 
