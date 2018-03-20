@@ -10,13 +10,25 @@ from params import dimension as dim
 
 #Count the number of line of a file
 def linecount(filename):
+    lines = 0
     if filename[-3:]=='.gz':
-        lines = 0
         with gzip.open(filename, "r+") as f:
             for x in f:
                 lines += 1
     else:
-        lines=int(subprocess.Popen("cat "+filename+" | wc -l", shell=True, stdout=subprocess.PIPE).stdout.read())
+        with open(filename, "r+") as f:
+            for x in f:
+                lines += 1
+    return lines
+
+#Count the number of line of a file using system tools
+#Usually faster !
+def linecount_sys(filename):
+    if filename[-3:]=='.gz':
+        z="z"
+    else:
+        z=""
+    lines=int(subprocess.Popen(z+"cat "+filename+" | wc -l", shell=True, stdout=subprocess.PIPE).stdout.read())
     return lines
 
 # Gives the order of a number

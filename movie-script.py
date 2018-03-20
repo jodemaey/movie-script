@@ -90,7 +90,10 @@ else:
 leg=''
 sl=[s] # Data filename
 fl=[leg] # Legende
-nlf=linecount(s) # Counting the number of line of data
+try:
+    nlf=linecount_sys(s) # Counting the number of line of data
+except:
+    nlf=linecount(s) # Counting the number of line of data
 
 # Opening the file
 evol=[]
