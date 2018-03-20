@@ -380,9 +380,9 @@ if 'mode' in view.Isel:
     for z in view.Isel:
         if z=='mode':
             if 'a' in view.IIsel[ii][0]:
-                ss[ii]=geom.ass
+                ss[ii]=geom.geometry.ass
             else:
-                ss[ii]=geom.oss
+                ss[ii]=geom.geometry.oss
             z0[ii]=np.zeros(ss[ii]).flatten()
             nx=np.arange(ss[ii][0])-0.5
             ny=np.arange(ss[ii][1])
@@ -465,9 +465,9 @@ for i in range(nlf):
                     y=100*y/y.sum()
                     for ii in range(1,len(y)+1):
                         if 'a' in view.IIsel[iii][0]:
-                            af=geom.aftable[ii]
+                            af=geom.geometry.aftable[ii]
                         else:
-                            af=geom.oftable[ii]
+                            af=geom.geometry.oftable[ii]
                         if af['typ']=='A':
                             za[iii][-1][af['Nxi'],af['Nyi']-1]=y[ii-1]
                         elif af['typ']=='K':
