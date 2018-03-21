@@ -203,14 +203,16 @@ def compute_quant(line):
     y=line.split()
     y=np.array(y,dtype=np.float64)
     psi=y[general.sdi['psi']:general.sdi['theta']]
-    # theta=y[general.sdi['theta']:general.sdi['A']]
-    # aa=y[general.sdi['A']:general.sdi['T']]
-    # tt=y[general.sdi['T']:geom.ndim+1]
+    theta=y[general.sdi['theta']:general.sdi['A']]
+    aa=y[general.sdi['A']:general.sdi['T']]
+    tt=y[general.sdi['T']:geom.ndim+1]
 
     psi=psi*dimension.dimdv['psi']
-    # theta=theta*dimension.dimdv['theta']
-    # aa=aa*dimension.dimdv['A']
-    # tt=tt*dimension.dimdv['T']
+    theta=theta*dimension.dimdv['theta']
+    aa=aa*dimension.dimdv['A']
+    tt=tt*dimension.dimdv['T']
+
+    comp=[psi,theta,aa,tt]
 
     if 'diff' in view.Isel:
         if 'geo' in view.IIsel[view.Isel.index('diff')]:
@@ -219,4 +221,4 @@ def compute_quant(line):
             geoap=None
     else:
         geoap=None
-    return geoap
+    return geoap,comp

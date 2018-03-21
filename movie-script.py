@@ -403,11 +403,12 @@ ifsmin=[None,None]
 
 e=evol[0]
 e.seek(0)
-
+ii=0
 for i in range(nlf):
     z=e.tell()
     line=e.readline()
     if i>=sti and np.mod(i-sti,ite)==0:
+	ii+=1
         if i==sti:
             pos=z
 
@@ -421,7 +422,7 @@ for i in range(nlf):
 
         Z=compute_frame(line,X,Y)
 
-        gdiff=compute_quant(line)
+        gdiff,x=compute_quant(line)
 
         if gdiff:
             geoap.append(gdiff)
@@ -438,9 +439,9 @@ for i in range(nlf):
                     yprofmidave[j].append(yprofmid[j][-1])
                     yprofave[j].append(yprof[j][-1])
                 else:
-                    y=yprofmidave[j][-1]+(yprofmid[j][-1]-yprofmidave[j][-1])/(i-sti)
+                    y=yprofmidave[j][-1]+(yprofmid[j][-1]-yprofmidave[j][-1])/ii
                     yprofmidave[j].append(y)
-                    y=yprofave[j][-1]+(yprof[j][-1]-yprofave[j][-1])/(i-sti)
+                    y=yprofave[j][-1]+(yprof[j][-1]-yprofave[j][-1])/ii
                     yprofave[j].append(y)
         if 'xprof' in view.Isel:
             for j in range(4):
@@ -450,9 +451,9 @@ for i in range(nlf):
                     xprofmidave[j].append(xprofmid[j][-1])
                     xprofave[j].append(xprof[j][-1])
                 else:
-                    y=xprofmidave[j][-1]+(xprofmid[j][-1]-xprofmidave[j][-1])/(i-sti)
+                    y=xprofmidave[j][-1]+(xprofmid[j][-1]-xprofmidave[j][-1])/ii
                     xprofmidave[j].append(y)
-                    y=xprofave[j][-1]+(xprof[j][-1]-xprofave[j][-1])/(i-sti)
+                    y=xprofave[j][-1]+(xprof[j][-1]-xprofave[j][-1])/ii
                     xprofave[j].append(y)
         if "mode" in view.Isel:
             iii=0
@@ -461,7 +462,8 @@ for i in range(nlf):
                     za[iii].append(np.zeros(ss[iii]))
                     zk[iii].append(np.zeros(ss[iii]))
                     zl[iii].append(np.zeros(ss[iii]))
-                    y=np.absolute(x[labels.sd[labels.sdd[view.IIsel[iii][0]]]][:,i])
+		    # to debug
+                    y=np.absolute(x[labels.sd[labels.sdd[view.IIsel[iii][0]]]])
                     y=100*y/y.sum()
                     for ii in range(1,len(y)+1):
                         if 'a' in view.IIsel[iii][0]:
