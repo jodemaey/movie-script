@@ -13,7 +13,8 @@
 # - matplotlib >= 1.5
 # - numpy
 
-# TODO : - 
+# TODO : - Option to compute the basis functions before the movie generation 
+#		(save computation time)
 #        - 
 
 # WARNING 1/2 : Assume that the spectral "geometry" of the model is contiguous.
@@ -403,12 +404,12 @@ ifsmin=[None,None]
 
 e=evol[0]
 e.seek(0)
-ii=0
+frn=0
 for i in range(nlf):
     z=e.tell()
     line=e.readline()
     if i>=sti and np.mod(i-sti,ite)==0:
-	ii+=1
+	frn+=1
         if i==sti:
             pos=z
 
@@ -439,9 +440,9 @@ for i in range(nlf):
                     yprofmidave[j].append(yprofmid[j][-1])
                     yprofave[j].append(yprof[j][-1])
                 else:
-                    y=yprofmidave[j][-1]+(yprofmid[j][-1]-yprofmidave[j][-1])/ii
+                    y=yprofmidave[j][-1]+(yprofmid[j][-1]-yprofmidave[j][-1])/frn
                     yprofmidave[j].append(y)
-                    y=yprofave[j][-1]+(yprof[j][-1]-yprofave[j][-1])/ii
+                    y=yprofave[j][-1]+(yprof[j][-1]-yprofave[j][-1])/frn
                     yprofave[j].append(y)
         if 'xprof' in view.Isel:
             for j in range(4):
@@ -451,9 +452,9 @@ for i in range(nlf):
                     xprofmidave[j].append(xprofmid[j][-1])
                     xprofave[j].append(xprof[j][-1])
                 else:
-                    y=xprofmidave[j][-1]+(xprofmid[j][-1]-xprofmidave[j][-1])/ii
+                    y=xprofmidave[j][-1]+(xprofmid[j][-1]-xprofmidave[j][-1])/frn
                     xprofmidave[j].append(y)
-                    y=xprofave[j][-1]+(xprof[j][-1]-xprofave[j][-1])/ii
+                    y=xprofave[j][-1]+(xprof[j][-1]-xprofave[j][-1])/frn
                     xprofave[j].append(y)
         if "mode" in view.Isel:
             iii=0
