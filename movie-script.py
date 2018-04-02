@@ -15,7 +15,7 @@
 
 # TODO : - Option to compute the basis functions before the movie generation 
 #		(save computation time)
-#        - 
+#        - Averaged atmospheric dynamics
 
 # WARNING 1/2 : Assume that the spectral "geometry" of the model is contiguous.
 #               E.g. a "2x4" geometry means that all the mode with x- and

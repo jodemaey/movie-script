@@ -194,9 +194,9 @@ def compute_frame(line,X,Y):
         pp=astream(X,Y,psi)
         pt=astream(X,Y,theta*(dimension.dimdv['psi']/dimension.dimdv['theta']))
         if 'ap1' in view.Zsel:
-            Z[view.Zsel.index('p1')]=pp+pt
+            Z[view.Zsel.index('ap1')]=pp+pt
         if 'ap3' in view.Zsel:
-            Z[view.Zsel.index('p3')]=pp-pt
+            Z[view.Zsel.index('ap3')]=pp-pt
     return Z
 
 def compute_quant(line):
