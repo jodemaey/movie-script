@@ -34,7 +34,7 @@
 
 import numpy as np
 import matplotlib
-# matplotlib.use('Agg')
+# matplotlib.use('Agg')  # Uncomment if you want to generate movie on a headless server
 import matplotlib.cm as cm
 import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
@@ -1015,12 +1015,13 @@ ax6.yaxis.set_major_locator(ticker.MultipleLocator(1.0))
 
 #Pruning unneeded data
 
-for i in range(len(dserie[0])):
-    dserie[0][i]=dserie[0][i][:,sti:ste+1:ite]
+if "3D" in view.Isel:
+    for i in range(len(dserie[0])):
+        dserie[0][i]=dserie[0][i][:,sti:ste+1:ite]
 
-#Shifting the time vector
+    #And shifting the time vector
 
-dserie[0][1]-=dserie[0][1][0,0]
+    dserie[0][1]-=dserie[0][1][0,0]
 
 # Defining the animation update function
 
