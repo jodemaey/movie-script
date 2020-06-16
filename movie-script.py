@@ -2,15 +2,16 @@
 # Code to compute videos of the output of the MAOOAM model
 
 # Copyright :
-# 2016-2018 Jonathan Demaeyer.
+# 2016-2020 Jonathan Demaeyer.
 # See LICENSE.txt for license information.  
 
 # Usage : ./movie-script.py <data-filename> <ageom> <ogeom>
 # Example : ./movie-script.py test.dat 2x4 2x4
 
-# This code needs: 
-# - mencoder
-# - matplotlib >= 1.5
+# This code needs:
+# - python 2.7
+# - ffmpeg
+# - matplotlib
 # - numpy
 
 # TODO : - Option to compute the basis functions before the movie generation 
@@ -1110,8 +1111,6 @@ if not showb:
 
 lengf=len(ZM[0])
 
-matplotlib.verbose.set_level('debug')
-
 if showb in ['P','p']:
     ani = anim.FuncAnimation(fig, animate, frames=lengf, interval=10, blit=False)
     plt.show()
@@ -1122,8 +1121,17 @@ else:
             mival=40
         else:
             mival=int(mival)
+        bitrate=raw_input('Bitrate of the video in kilobits/second ? (default=3000)')
+        if not bitrate:
+            bitrate=3000
+        else:
+            bitrate=int(bitrate)
+        codec=raw_input('Codec ? (default: h264)')
+        if not codec:
+            codec='h264'
         print 'The FPS will be '+str(int(1./(mival/1000.)))+' frames per second.'
-        print 'The movie will last '+str(mival*lengf/1.e3)+' seconds.'
+        print 'The movie will last '+str(mival*lengf/1.e3)+' seconds and'
+        print 'will be a '+str(bitrate * (mival*lengf/1.e3) / 8000)+' MB movie file.'
         x=raw_input('Do you agree with this ? (y/N)')
         if x in ['y','Y']:
             break
@@ -1157,7 +1165,7 @@ else:
     ssav=raw_input('Output filename ? (default : "out.mp4")')
     if not ssav:
         ssav='out.mp4'
-    ani.save(ssav,writer='mencoder',bitrate=None,codec='mpeg4:vbitrate=3000',metadata=meta) #extra_args=['-vf','scale=1024:576'],
+    ani.save(ssav,writer='ffmpeg',bitrate=bitrate,codec=codec,metadata=meta) #extra_args=['-vf','scale=1024:576'],
         
 endt=time.time()
 
