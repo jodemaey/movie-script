@@ -1,0 +1,9 @@
+name: movie-script
+channels:
+  - defaults
+dependencies:
+  - python=2.7
+  - matplotlib
+  - numpy
+  - ffmpeg
+
