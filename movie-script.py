@@ -6,7 +6,7 @@
 # See LICENSE.txt for license information.  
 
 # Usage : ./movie-script.py <data-filename> <ageom> <ogeom>
-# Example : ./movie-script.py test.dat 2x4 2x4
+# Example : ./movie-script.py ./data/test.dat 2x4 2x4
 
 # This code needs:
 # - python 2.7
